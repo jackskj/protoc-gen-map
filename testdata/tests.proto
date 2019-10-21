@@ -1,0 +1,126 @@
+syntax="proto3";
+
+package testdata;
+
+import "google/protobuf/timestamp.proto";
+import "examples/query.proto";
+
+option go_package = "github.com/jackskj/protoc-gen-map/testdata;testdata";
+
+service TestReflectService {
+  rpc TypeCasting    ( EmptyRequest) returns ( TypeCastingResponse){}
+  rpc IncorrectTypes ( TypeRequest) returns ( GoTypesResponse){}
+}
+
+service TestMappingService {
+  rpc RepeatedAssociations    ( EmptyRequest) returns ( RepeatedAssociationsResponse){}
+  rpc EmptyQuery              ( EmptyRequest) returns ( SampleResponse) {}
+  rpc InsertQueryAsExec       ( EmptyRequest) returns ( examples.Author ) {} // insert indicates exec type, this is a select query
+  rpc ExecAsQuery             ( EmptyRequest) returns ( SampleResponse ) {}
+  rpc UnclaimedColumns        ( EmptyRequest) returns ( AuthorUserNameResponse) {}
+  rpc MultipleRespForUnary    ( EmptyRequest) returns ( examples.Author ) {}
+  rpc RepeatedPrimative       ( EmptyRequest) returns ( RepeatedPrimativeResponse) {}
+  rpc RepeatedEmpty           ( EmptyRequest) returns ( RepeatedEmptyResponse) {}
+  rpc EmptyNestedField        ( EmptyRequest) returns ( NestedFieldResponse) {}
+  rpc NoMatchingColumns       ( EmptyRequest) returns ( examples.Author ) {}
+  rpc AssociationInCollection ( EmptyRequest) returns ( AssociationInCollectionResponse) {}
+  rpc CollectionInAssociation ( EmptyRequest) returns ( CollectionInAssociationResponse) {}
+  rpc RepeatedTimestamp       ( EmptyRequest) returns ( RepeatedTimestampResponse) {}
+  rpc NullResoultsForSubmaps  ( EmptyRequest) returns ( stream examples.Post ) {}
+}
+
+message TypeCastingResponse{   // GOTYPE
+	double double_cast     = 1;  // float64
+	float float_cast       = 2;  // float32
+	int32 int32_cast       = 3;  // int32
+	int64 int64_cast       = 4;  // int64
+	uint32 uint32_cast     = 5;  // uint32
+	uint64 uint64_cast     = 6;  // uint64
+	sint32 sint32_cast     = 7;  // int32
+	sint64 sint64_cast     = 8;  // int64
+	fixed32 fixed32_cast   = 9;  // uint32
+	fixed64 fixed64_cast   = 10; // uint64
+	sfixed32 sfixed32_cast = 11; // int32
+	sfixed64 sfixed64_cast = 12; // int64
+	bool bool_cast         = 13; // bool
+	string string_cast     = 14; // string
+  google.protobuf.Timestamp timestamp_cast = 15; // time.Time
+}
+
+message TypeRequest {
+  string type_value = 1;
+}
+
+message GoTypesResponse{ // GOTYPE
+	double go_float64 = 1; // float64
+	float go_float32  = 2; // float32
+	int32 go_int32    = 3; // int32
+	int64 go_int64    = 4; // int64
+	uint32 go_uint32  = 5; // uint32
+	uint64 go_uint64  = 6; // uint64
+	bool go_bool      = 7; // bool
+	string go_string  = 8; // string
+  google.protobuf.Timestamp go_timestamp = 9; // timestamp.Timestamp
+}
+
+message RepeatedAssociationsResponse{
+  uint32 blog_id = 1;
+  examples.Post post = 2; //blog-post is has-many (collection)
+}
+
+message AuthorUserNameResponse {
+  string author_username = 1;
+}
+
+message RepeatedPrimativeResponse {
+  repeated uint32 repeated_int = 1;
+}
+
+message RepeatedEmptyResponse {
+  uint32 blog_id = 1;
+  repeated EmptyResponse empty_response = 2;
+}
+
+message RepeatedTimestampResponse {
+  uint32 blog_id = 1;
+  repeated  google.protobuf.Timestamp post_created_on = 2;
+}
+
+message NestedFieldResponse {
+  uint32 blog_id = 1;
+  EmptyResponse empty = 2;
+}
+
+message AssociationInCollectionResponse {
+  uint32 tag_id = 1;
+  repeated TagPost tag_post = 2;
+}
+
+message TagPost {
+  uint32 post_id = 1;
+  PostBlog post_blog = 2;
+}
+
+message PostBlog{
+  uint32 blog_id = 1;
+}
+
+message NestedBlog {
+  uint32 blog_id = 1;
+  string blog_title = 2;
+  examples.Author author = 3;
+}
+
+message CollectionInAssociationResponse {
+  uint32 post_id = 1;
+  OnePost post = 2;
+}
+
+message OnePost {
+  string id = 1;
+  repeated examples.Comment comment = 2;
+}
+
+message EmptyRequest {}
+message EmptyResponse {}
+message SampleResponse {}

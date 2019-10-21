@@ -1,0 +1,12 @@
+syntax="proto3";
+
+package gentest;
+
+option go_package = "github.com/jackskj/protoc-gen-map/testdata/gentest;gentest";
+
+service OnlyQuryService {
+  rpc Query (OnlyQury) returns (OnlyQury) {}
+}
+
+message OnlyQury {}
+

@@ -1,0 +1,25 @@
+syntax="proto3";
+
+package gentest;
+
+option go_package = "github.com/jackskj/protoc-gen-map/testdata/gentest;gentest";
+
+service ExecTypeService {
+  rpc ExecOne   (EmptyRequest) returns (EmptyResponse){}
+  rpc ExecTwo   (EmptyRequest) returns (EMpTyResponse){}
+  rpc ExecThree (EmptyRequest) returns (NilResponse){}
+  rpc ExecFour  (EmptyRequest) returns (NullResponse){}
+  rpc ExecFive  (EmptyRequest) returns (nuLlResponse){}
+  rpc InSeRt    (EmptyRequest) returns (EmptyResponse){}
+  rpc Delete    (EmptyRequest) returns (SampleResponse){}
+  rpc Update    (EmptyRequest) returns (SampleResponse){}
+  rpc Create    (EmptyRequest) returns (SampleResponse){}
+}
+
+message  EmptyRequest{}
+message  EmptyResponse {}
+message  EMpTyResponse {}
+message  NilResponse {}
+message  NullResponse {}
+message  nuLlResponse {}
+message  SampleResponse {}

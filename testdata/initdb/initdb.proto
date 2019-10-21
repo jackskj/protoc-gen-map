@@ -1,0 +1,63 @@
+syntax="proto3";
+
+package initdb;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/jackskj/protoc-gen-map/testdata/initdb;initdb";
+
+service InitService {
+  rpc InitDB (EmptyRequest) returns (EmptyResponse) {}
+  rpc InsertAuthor (InsertAuthorRequest) returns (EmptyResponse) {}
+  rpc InsertBlog (InsertBlogRequest) returns (EmptyResponse) {}
+  rpc InsertComment (InsertCommentRequest) returns (EmptyResponse) {}
+  rpc InsertPost (InsertPostRequest) returns (EmptyResponse) {}
+  rpc InsertPostTag (InsertPostTagRequest) returns (EmptyResponse) {}
+  rpc InsertTag (InsertTagRequest) returns (EmptyResponse) {}
+}
+
+message InsertAuthorRequest {
+  uint32 id = 1;
+  string username = 2;
+  string password = 3;
+  string email = 4;
+  string bio = 5;
+  string favourite_section = 6;
+}
+
+message InsertBlogRequest {
+  uint32 id = 1;
+  string title = 2;
+  uint32 author_id= 3;
+}
+
+message InsertCommentRequest {
+  uint32 id = 1;
+  uint32 post_id = 2;
+  string name = 3;
+  string comment = 4;
+}
+
+message InsertPostRequest {
+  uint32 id = 1;
+  uint32 author_id = 2;
+  uint32 blog_id = 3;
+  google.protobuf.Timestamp created_on = 4;
+  string section = 5;
+  string subject = 6;
+  string draft = 7;
+  string body = 8;
+}
+
+message InsertPostTagRequest {
+  uint32 post_id = 1;
+  uint32 tag_id = 2;
+}
+
+message InsertTagRequest {
+  uint32 id = 1;
+  string name = 2;
+}
+
+message EmptyResponse {}
+message EmptyRequest {}

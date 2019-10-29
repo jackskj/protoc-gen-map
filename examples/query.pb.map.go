@@ -34,6 +34,19 @@ var _ = math.Inf
 // 2. Register MapperServer as the gRPC service server
 // 3. Begin serving
 
+var EnumValueMaps = map[string]map[string]int32{
+	"Section": map[string]int32{
+		"cooking":      0,
+		"painting":     1,
+		"snowboarding": 3,
+		"woodworking":  2,
+	},
+}
+
+func init() {
+	mapper.RegisterEnums(EnumValueMaps)
+}
+
 type BlogQueryServiceMapServer struct {
 	DB                        *sql.DB
 	SelectBlogMapper          *mapper.Mapper

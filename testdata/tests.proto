@@ -27,6 +27,8 @@ service TestMappingService {
   rpc CollectionInAssociation ( EmptyRequest) returns ( CollectionInAssociationResponse) {}
   rpc RepeatedTimestamp       ( EmptyRequest) returns ( RepeatedTimestampResponse) {}
   rpc NullResoultsForSubmaps  ( EmptyRequest) returns ( stream examples.Post ) {}
+  rpc SimpleEnum              ( EmptyRequest) returns ( examples.Author ) {}
+  rpc NestedEnum              ( EmptyRequest) returns ( NestedEnumResponse ) {}
 }
 
 message TypeCastingResponse{   // GOTYPE
@@ -119,6 +121,19 @@ message CollectionInAssociationResponse {
 message OnePost {
   string id = 1;
   repeated examples.Comment comment = 2;
+}
+
+message NestedEnumResponse {
+  string id =1;
+  message NestedMsg {
+    string nested_id =1;
+    enum NestedEnum {
+      span = 0;
+      egg = 1;
+    }
+    NestedEnum nested_enum = 2;
+  }
+  NestedMsg nested_msg = 2;
 }
 
 message EmptyRequest {}

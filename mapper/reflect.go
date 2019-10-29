@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"log"
 	"reflect"
 	"strconv"
 	"time"
@@ -19,7 +20,9 @@ import (
 // TODO, convert "null" responses (mssql) to nil responses
 
 type Value struct {
+	rfield   reflect.Value
 	rvalue   reflect.Value
+	ivalue   interface{}
 	intVal   int64
 	uintVal  uint64
 	floatVal float64
@@ -30,26 +33,36 @@ type Value struct {
 }
 
 func setProto(field reflect.Value, value interface{}) error {
-	var v *Value
+	v := Value{
+		rfield: field,
+		rvalue: reflect.ValueOf(value),
+		ivalue: value,
+	}
 	switch field.Interface().(type) {
 	case int, int8, int16, int32, int64:
-		v = NewValue(value, "int")
+		v.castVal("int")
 		field.SetInt(v.intVal)
 	case uint, uint8, uint16, uint32, uint64:
-		v = NewValue(value, "uint")
+		v.castVal("uint")
 		field.SetUint(v.uintVal)
 	case float32, float64:
-		v = NewValue(value, "float")
+		v.castVal("float")
 		field.SetFloat(v.floatVal)
 	case string:
-		v = NewValue(value, "string")
+		v.castVal("string")
 		field.SetString(v.strVal)
 	case bool:
-		v = NewValue(value, "bool")
+		v.castVal("bool")
 		field.SetBool(v.boolVal)
 	case *timestamp.Timestamp:
-		v = NewValue(value, "timestamp")
+		v.castVal("timestamp")
 		field.Set(v.timeVal)
+	default:
+		//mapping enums
+		if field.Kind() == reflect.Int32 {
+			v.castVal("enum")
+			field.SetInt(v.intVal)
+		}
 	}
 	// TODO, return errors for more faulty conversions, for example, invalid string to int
 	// As on now, errors are reurn for invalid datetime
@@ -60,27 +73,27 @@ func setProto(field reflect.Value, value interface{}) error {
 	}
 }
 
-func NewValue(ivalue interface{}, respType string) *Value {
-	v := Value{rvalue: reflect.ValueOf(ivalue)}
+func (v *Value) castVal(respType string) {
 	switch respType {
 	case "int":
-		v.castInt(ivalue)
+		v.castInt(false)
+	case "enum":
+		v.castInt(true)
 	case "uint":
-		v.castUint(ivalue)
+		v.castUint()
 	case "float":
-		v.castFLoat(ivalue)
+		v.castFLoat()
 	case "string":
-		v.castString(ivalue)
+		v.castString()
 	case "bool":
-		v.castBool(ivalue)
+		v.castBool()
 	case "timestamp":
-		v.castTimestamp(ivalue)
+		v.castTimestamp()
 	}
-	return &v
 }
 
-func (v *Value) castInt(ivalue interface{}) {
-	switch ivalue.(type) {
+func (v *Value) castInt(isEnum bool) {
+	switch v.ivalue.(type) {
 	case int, int8, int16, int32, int64:
 		v.intVal = v.rvalue.Int()
 	case uint, uint8, uint16, uint32, uint64:
@@ -88,7 +101,18 @@ func (v *Value) castInt(ivalue interface{}) {
 	case float32, float64:
 		v.intVal = int64(v.rvalue.Float())
 	case string:
-		if s, err := strconv.Atoi(v.rvalue.String()); err == nil {
+		if isEnum {
+			valuesMapName := v.rfield.Type().Name()
+			enumVal := reflect.ValueOf(v.ivalue).String()
+			//Get the enums from registered proto enumse
+			if intVal, found := EnumVals[valuesMapName][enumVal]; found {
+				v.intVal = int64(intVal)
+			} else {
+				log.Println(EnumVals[valuesMapName])
+				log.Println(EnumVals)
+				v.err = errors.New("Value \"" + enumVal + "\" not found in " + valuesMapName + " enum.")
+			}
+		} else if s, err := strconv.Atoi(v.rvalue.String()); err == nil {
 			v.intVal = int64(s)
 		} else {
 			v.intVal = int64(0)
@@ -100,12 +124,12 @@ func (v *Value) castInt(ivalue interface{}) {
 			v.intVal = 0
 		}
 	case time.Time:
-		v.intVal = ivalue.(time.Time).Unix()
+		v.intVal = v.ivalue.(time.Time).Unix()
 	}
 }
 
-func (v *Value) castUint(ivalue interface{}) {
-	switch ivalue.(type) {
+func (v *Value) castUint() {
+	switch v.ivalue.(type) {
 	case int, int8, int16, int32, int64:
 		v.uintVal = uint64(v.rvalue.Int())
 	case uint, uint8, uint16, uint32, uint64:
@@ -125,12 +149,12 @@ func (v *Value) castUint(ivalue interface{}) {
 			v.uintVal = uint64(0)
 		}
 	case time.Time:
-		v.uintVal = uint64(ivalue.(time.Time).Unix())
+		v.uintVal = uint64(v.ivalue.(time.Time).Unix())
 	}
 }
 
-func (v *Value) castFLoat(ivalue interface{}) {
-	switch ivalue.(type) {
+func (v *Value) castFLoat() {
+	switch v.ivalue.(type) {
 	case int, int8, int16, int32, int64:
 		v.floatVal = float64(v.rvalue.Int())
 	case uint, uint8, uint16, uint32, uint64:
@@ -150,12 +174,12 @@ func (v *Value) castFLoat(ivalue interface{}) {
 			v.floatVal = float64(0)
 		}
 	case time.Time:
-		v.floatVal = float64(ivalue.(time.Time).Unix())
+		v.floatVal = float64(v.ivalue.(time.Time).Unix())
 	}
 }
 
-func (v *Value) castString(ivalue interface{}) {
-	switch ivalue.(type) {
+func (v *Value) castString() {
+	switch v.ivalue.(type) {
 	case int, int8, int16, int32, int64:
 		v.strVal = strconv.FormatInt(v.rvalue.Int(), 10)
 	case uint, uint8, uint16, uint32, uint64:
@@ -171,12 +195,12 @@ func (v *Value) castString(ivalue interface{}) {
 			v.strVal = "false"
 		}
 	case time.Time:
-		v.strVal = ivalue.(time.Time).String()
+		v.strVal = v.ivalue.(time.Time).String()
 	}
 }
 
-func (v *Value) castBool(ivalue interface{}) {
-	switch ivalue.(type) {
+func (v *Value) castBool() {
+	switch v.ivalue.(type) {
 	case int, int8, int16, int32, int64:
 		if v.rvalue.Int() == 0 {
 			v.boolVal = false
@@ -208,10 +232,10 @@ func (v *Value) castBool(ivalue interface{}) {
 	}
 }
 
-func (v *Value) castTimestamp(ivalue interface{}) {
-	switch ivalue.(type) {
+func (v *Value) castTimestamp() {
+	switch v.ivalue.(type) {
 	case time.Time:
-		if sqlTime, err := ptypes.TimestampProto(ivalue.(time.Time)); err == nil {
+		if sqlTime, err := ptypes.TimestampProto(v.ivalue.(time.Time)); err == nil {
 			v.timeVal = reflect.ValueOf(sqlTime)
 		} else {
 			v.timeVal = reflect.ValueOf(ptypes.TimestampNow())
@@ -219,6 +243,9 @@ func (v *Value) castTimestamp(ivalue interface{}) {
 		}
 	default:
 		v.timeVal = reflect.ValueOf(ptypes.TimestampNow())
-		v.err = errors.New(fmt.Sprintf("cannot convert 	%s of type %s to time.Time", ivalue, reflect.TypeOf(ivalue)))
+		v.err = errors.New(fmt.Sprintf(
+			"cannot convert %s of type %s to time.Time",
+			v.ivalue, reflect.TypeOf(v.ivalue),
+		))
 	}
 }

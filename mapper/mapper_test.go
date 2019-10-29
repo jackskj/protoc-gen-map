@@ -251,6 +251,21 @@ func TestMappingService(t *testing.T) {
 	if isVerbose {
 		printResp(resp)
 	}
+	resp, err = testMappingClient.SimpleEnum(ctx, &td.EmptyRequest{})
+	if err != nil {
+		log.Printf("stream error: %s\n", err)
+	}
+	if isVerbose {
+		printResp(resp)
+	}
+	resp, err = testMappingClient.NestedEnum(ctx, &td.EmptyRequest{})
+	if err != nil {
+		log.Printf("stream error: %s\n", err)
+	}
+	if isVerbose {
+		log.Printf("  asdasdasdsa: %s\n", err)
+		printResp(resp)
+	}
 	posts, err = testMappingClient.NullResoultsForSubmaps(ctx, &td.EmptyRequest{})
 	if err != nil {
 		log.Fatalf("stream error: %s", err)

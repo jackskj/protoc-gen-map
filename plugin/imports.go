@@ -8,13 +8,13 @@ var imports = map[alias]string{
 	"bytes":      "bytes",
 	"context":    "context",
 	"codes":      "google.golang.org/grpc/codes",
-	"log":        "log",
+	"status":     "google.golang.org/grpc/status",
 	"mapper":     "github.com/jackskj/protoc-gen-map/mapper",
 	"mappertmpl": "github.com/jackskj/protoc-gen-map/templates",
-	"sync":       "sync",
 	"sprig":      "github.com/Masterminds/sprig",
+	"log":        "log",
+	"sync":       "sync",
 	"sql":        "database/sql",
-	"status":     "google.golang.org/grpc/status",
 	"template":   "text/template",
 }
 
@@ -48,4 +48,8 @@ func (p *SqlPlugin) setTemplateImports() {
 	p.Pkg["mappertmpl"] = true
 	p.Pkg["template"] = true
 	p.Pkg["sprig"] = true
+}
+
+func (p *SqlPlugin) setEnumImports() {
+	p.Pkg["mapper"] = true
 }

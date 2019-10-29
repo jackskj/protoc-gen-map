@@ -118,3 +118,20 @@ from post_tag PT
        left outer join comment C   on  P.id = C.post_id
 where C.comment is null
 {{ end }}
+
+{{ define "SimpleEnum" }}
+select
+       A.username          as  author_username,
+       A.password          as  author_password,
+       A.email             as  author_email,
+       A.bio               as  author_bio,
+       A.favourite_section as  author_favourite_section
+from author A where id = 3
+{{ end }}
+
+{{ define "NestedEnum" }}
+select
+        1 as id,
+        2 as nested_id,
+        'egg' as nested_enum
+{{ end }}

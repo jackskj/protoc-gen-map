@@ -20,6 +20,7 @@ type SqlPlugin struct {
 	SqlTemplates    string
 	SqlTemplateName string
 	Pkg             map[alias]bool
+	EnumValueMaps   map[string]map[string]int32
 
 	matchingTemplates map[string]bool
 	currentPackage    string

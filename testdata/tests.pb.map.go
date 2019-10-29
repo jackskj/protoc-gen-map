@@ -36,6 +36,17 @@ var _ = math.Inf
 // 2. Register MapperServer as the gRPC service server
 // 3. Begin serving
 
+var EnumValueMaps = map[string]map[string]int32{
+	"NestedEnumResponse_NestedMsg_NestedEnum": map[string]int32{
+		"egg":  1,
+		"span": 0,
+	},
+}
+
+func init() {
+	mapper.RegisterEnums(EnumValueMaps)
+}
+
 type TestReflectServiceMapServer struct {
 	DB                   *sql.DB
 	IncorrectTypesMapper *mapper.Mapper
@@ -139,12 +150,14 @@ type TestMappingServiceMapServer struct {
 	ExecAsQueryMapper             *mapper.Mapper
 	InsertQueryAsExecMapper       *mapper.Mapper
 	MultipleRespForUnaryMapper    *mapper.Mapper
+	NestedEnumMapper              *mapper.Mapper
 	NoMatchingColumnsMapper       *mapper.Mapper
 	NullResoultsForSubmapsMapper  *mapper.Mapper
 	RepeatedAssociationsMapper    *mapper.Mapper
 	RepeatedEmptyMapper           *mapper.Mapper
 	RepeatedPrimativeMapper       *mapper.Mapper
 	RepeatedTimestampMapper       *mapper.Mapper
+	SimpleEnumMapper              *mapper.Mapper
 	UnclaimedColumnsMapper        *mapper.Mapper
 
 	mapperGenMux sync.Mutex
@@ -724,6 +737,92 @@ func (m *TestMappingServiceMapServer) NullResoultsForSubmaps(r *EmptyRequest, st
 	return nil
 }
 
+func (m *TestMappingServiceMapServer) SimpleEnum(ctx context.Context, r *EmptyRequest) (*examples.Author, error) {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "SimpleEnum", r); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+
+	rows, err := m.DB.Query(rawSql)
+	defer rows.Close()
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	if m.SimpleEnumMapper == nil {
+		m.mapperGenMux.Lock()
+		m.SimpleEnumMapper, err = mapper.New(rows, &examples.Author{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating SimpleEnumMapper: %s", err)
+			return nil, status.Error(codes.Internal, "error generating examples.Author mapping")
+		}
+		m.SimpleEnumMapper.Log()
+	}
+	respMap := m.SimpleEnumMapper.NewResponseMapping()
+	if err := m.SimpleEnumMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for SimpleEnum: %s", err)
+		return nil, status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.SimpleEnumMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig SimpleEnumMapper: %s", err)
+		m.SimpleEnumMapper.Error = nil
+		return nil, status.Error(codes.Internal, "error mappig examples.Author")
+	}
+	m.SimpleEnumMapper.Log()
+	if len(respMap.Responses) == 0 {
+		//No Responses found
+		return new(examples.Author), nil
+	} else {
+		return respMap.Responses[0].(*examples.Author), nil
+	}
+
+}
+
+func (m *TestMappingServiceMapServer) NestedEnum(ctx context.Context, r *EmptyRequest) (*NestedEnumResponse, error) {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "NestedEnum", r); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+
+	rows, err := m.DB.Query(rawSql)
+	defer rows.Close()
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	if m.NestedEnumMapper == nil {
+		m.mapperGenMux.Lock()
+		m.NestedEnumMapper, err = mapper.New(rows, &NestedEnumResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating NestedEnumMapper: %s", err)
+			return nil, status.Error(codes.Internal, "error generating NestedEnumResponse mapping")
+		}
+		m.NestedEnumMapper.Log()
+	}
+	respMap := m.NestedEnumMapper.NewResponseMapping()
+	if err := m.NestedEnumMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for NestedEnum: %s", err)
+		return nil, status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.NestedEnumMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig NestedEnumMapper: %s", err)
+		m.NestedEnumMapper.Error = nil
+		return nil, status.Error(codes.Internal, "error mappig NestedEnumResponse")
+	}
+	m.NestedEnumMapper.Log()
+	if len(respMap.Responses) == 0 {
+		//No Responses found
+		return new(NestedEnumResponse), nil
+	} else {
+		return respMap.Responses[0].(*NestedEnumResponse), nil
+	}
+
+}
+
 var sqlTemplate, _ = template.New("sqlTemplate").Funcs(sprig.TxtFuncMap()).Funcs(mappertmpl.Funcs()).Parse(`
 {{ define "RepeatedAssociations" }}
 select
@@ -844,6 +943,23 @@ from post_tag PT
        left outer join post P      on  PT.post_id = P.id
        left outer join comment C   on  P.id = C.post_id
 where C.comment is null
+{{ end }}
+
+{{ define "SimpleEnum" }}
+select
+       A.username          as  author_username,
+       A.password          as  author_password,
+       A.email             as  author_email,
+       A.bio               as  author_bio,
+       A.favourite_section as  author_favourite_section
+from author A where id = 3
+{{ end }}
+
+{{ define "NestedEnum" }}
+select
+        1 as id,
+        2 as nested_id,
+        'egg' as nested_enum
 {{ end }}
 {{ define "TypeCasting" }}
 select

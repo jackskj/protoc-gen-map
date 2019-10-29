@@ -105,7 +105,7 @@ func GenerateRequests() *Requests {
 				Password:         lorem(),
 				Email:            lorem(),
 				Bio:              lorem(),
-				FavouriteSection: lorem(),
+				FavouriteSection: getSection(),
 			},
 		)
 	}
@@ -138,7 +138,7 @@ func GenerateRequests() *Requests {
 				AuthorId:  uint32(postAuthor[i]),
 				BlogId:    uint32(postBlog[i]),
 				CreatedOn: tsNow,
-				Section:   lorem(),
+				Section:   getSection(),
 				Subject:   lorem(),
 				Draft:     lorem(),
 				Body:      lorem(),
@@ -158,12 +158,23 @@ func GenerateRequests() *Requests {
 	}
 	return &requests
 }
+
+func getSection() string {
+	sections := []string{
+		"cooking",
+		"painting",
+		"woodworking",
+		"snowboarding",
+	}
+	return sections[rand.Intn(len(sections))]
+}
+
 func GetPG() *sql.DB {
 	connStr := "postgres://postgres@localhost:5432/postgres?sslmode=disable"
 	db, err := sql.Open("postgres", connStr)
-	if err != nil {
+	if err != nil || db.Ping() != nil {
 		log.Println("Cannot connect to testing database, \n" +
-			"to run local postgres testing DB, run \"docker run -d postgres -p 5432\"")
+			"to run local postgres testing DB, run \"docker run -d  -p 5432:5432 postgres\"")
 		log.Fatal(err)
 	}
 	return db

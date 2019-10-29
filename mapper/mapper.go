@@ -15,9 +15,11 @@ var _ = fmt.Errorf
 var _ = log.Fatal
 var _ = reflect.Append
 
-type mapName string    // Map name corresponds to the proto message name
-type columnName string // Name of the column returned by executing SQL
-type mapType int
+type (
+	mapName    string // Map name corresponds to the proto message name
+	columnName string // Name of the column returned by executing SQL
+	mapType    int
+)
 
 // Map can either be, a top level element (proto response)
 // Association, (nested field) or
@@ -26,6 +28,10 @@ const (
 	TopLevelElement mapType = iota
 	Association
 	Collection
+)
+
+var (
+	EnumVals map[string]map[string]int32
 )
 
 // Representation of SQL response mapping to a proto response message
@@ -201,15 +207,17 @@ func generateSqlMap(sqlMap *SqlMap, protoMsg interface{}, columns []string) {
 					strings.ToLower(field.Name):  true,
 				}
 				if _, found := possibleFieldNames[c]; found {
-					sqlMapColumns[columnName(c)] = &ProtoField{
+					protoField := ProtoField{
 						field: &field,
 						index: i,
 					}
+					sqlMapColumns[columnName(c)] = &protoField
 					// remove claimed column
 					columns[j] = columns[len(columns)-1]
 					columns = columns[:len(columns)-1]
 					break
 				}
+
 			}
 		} else if subMapType, isSubMap, err := isSubMap(field); isSubMap == true {
 			if err != nil {
@@ -287,9 +295,18 @@ func isAlowedType(field reflect.StructField) bool {
 		return true
 	} else if kind == reflect.Ptr && allowedTypes[field.Type] {
 		return true
+	} else if isEnum(field) {
+		return true
 	} else {
 		return false
 	}
+}
+
+func isEnum(field reflect.StructField) bool {
+	if field.Type.Kind() == reflect.Int32 && field.Type.Name() != "int32" {
+		return true
+	}
+	return false
 }
 
 // Tests if the struct field is a submap, this is true for nester and repeated fields
@@ -484,6 +501,16 @@ func newSubMapVals(sqlMap *SqlMap, sqlMapVals *SqlMapVals) {
 	for mapName, collection := range sqlMap.Collections {
 		sqlMapVals.Collections[mapName] = new(SqlMapVals)
 		newSubMapVals(collection, sqlMapVals.Collections[mapName])
+	}
+}
+
+func RegisterEnums(enums map[string]map[string]int32) {
+	if EnumVals == nil {
+		EnumVals = enums
+	} else {
+		for enumMapName, enumMapVals := range enums {
+			EnumVals[enumMapName] = enumMapVals
+		}
 	}
 }
 

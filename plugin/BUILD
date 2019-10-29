@@ -14,6 +14,7 @@ go_library(
         "//templates:go_default_library",
         "@com_github_gogo_protobuf//protoc-gen-gogo/descriptor:go_default_library",
         "@com_github_gogo_protobuf//protoc-gen-gogo/generator:go_default_library",
+        "@com_github_golang_protobuf//protoc-gen-go/generator:go_default_library_gen",
         "@com_github_masterminds_sprig//:go_default_library",
     ],
 )

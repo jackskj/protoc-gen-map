@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/gogo/protobuf/protoc-gen-gogo/descriptor"
 	"github.com/gogo/protobuf/protoc-gen-gogo/generator"
+	protogen "github.com/golang/protobuf/protoc-gen-go/generator"
 	"strings"
 )
 
@@ -34,6 +35,7 @@ type Message struct {
 // Generates mapper file
 func (p *SqlPlugin) Generate(file *generator.FileDescriptor) {
 	p.printHeader(file)
+	p.generateEnumVals(file)
 	p.generateMethods(file)
 	p.PrintSQLTemplates(file)
 }
@@ -162,6 +164,47 @@ func (p *SqlPlugin) getMessageName(msg string, file *generator.FileDescriptor) s
 			}
 		}
 		return goPackageName + "." + strings.Title(typeName)
+	}
+}
+
+func (p *SqlPlugin) generateEnumVals(file *generator.FileDescriptor) {
+	p.EnumValueMaps = make(map[string]map[string]int32)
+	p.findEnums(file.GetEnumType(), []string{})
+	for _, message := range file.GetMessageType() {
+		p.findEnums(message.GetEnumType(), []string{message.GetName()})
+		p.findNestedEnums(message, []string{message.GetName()})
+	}
+	if len(p.EnumValueMaps) > 0 {
+		p.setEnumImports()
+		buff := bytes.Buffer{}
+		err := p.genTemplate.ExecuteTemplate(&buff, "enumValueMaps", p)
+		if err != nil {
+			p.Error(err.Error())
+		}
+		err = p.genTemplate.ExecuteTemplate(&buff, "initFunc", nil)
+		if err != nil {
+			p.Error(err.Error())
+		}
+		p.P(buff.String())
+	}
+}
+
+func (p *SqlPlugin) findNestedEnums(message *descriptor.DescriptorProto, typeName []string) {
+	for _, nestedMsg := range message.GetNestedType() {
+		nestedTypeName := append(typeName, nestedMsg.GetName())
+		p.findEnums(nestedMsg.GetEnumType(), nestedTypeName)
+		p.findNestedEnums(nestedMsg, nestedTypeName)
+	}
+}
+
+func (p *SqlPlugin) findEnums(enums []*descriptor.EnumDescriptorProto, typeName []string) {
+	for _, enum := range enums {
+		enumValueMap := make(map[string]int32)
+		for _, value := range enum.GetValue() {
+			enumValueMap[value.GetName()] = value.GetNumber()
+		}
+		ccTypeName := protogen.CamelCase(strings.Join(append(typeName, enum.GetName()), "_"))
+		p.EnumValueMaps[ccTypeName] = enumValueMap
 	}
 }
 

@@ -112,14 +112,13 @@ message DetailedBlogResponse {
   Author author = 3;
   repeated Post posts = 4;
 }
-
 message Author {
   uint32 author_id = 1;
   string author_username = 2;
   string author_password = 3;
   string author_email = 4;
   string author_bio = 5;
-  string author_favourite_section = 6;
+  Section author_favourite_section = 6;
 }
 
 message Post {
@@ -127,7 +126,7 @@ message Post {
   uint32 post_blog_id = 2;
   uint32 post_author_id = 3;
   google.protobuf.Timestamp post_created_on = 4;
-  string post_section = 5;
+  Section post_section = 5;
   string post_subject = 6;
   string draft = 7;
   string post_body = 8;
@@ -145,6 +144,13 @@ message Comment {
 message Tag {
   uint32 tag_id = 1;
   string tag_name = 2;
+}
+
+enum Section {
+  cooking = 0;
+  painting = 1;
+  woodworking = 2;
+  snowboarding = 3;
 }
 ```
 Client requesting a detailed blog information will receive the DetailedBlogResponse with properly mapped data from the rows retrieved by the query
@@ -346,7 +352,7 @@ message Blog {
 ```
   rpc SelectBlogs (BlogRequest) returns (stream BlogResponse) {}
 ```
-7. At least one primitive or timestamp.Timestamp type field must be present in a message. 
+7. At least one primitive, timestamp.Timestamp or enum field must be present in a message. 
 8. For time definitions, use Timestamp from "google/protobuf/timestamp.proto"
 9. When using Timestamp from google/protobuf/timestamp.proto as input, you must use the helper functions "time", "date", and "timestamp" to correctly generate input for your column type. For example, 
 ```

@@ -57,7 +57,7 @@ Streaming services indicate that we are requesting multiple responses. In this c
 Things usually aren't as simple. SQL statements often tend to be complex and lengthy, especially when projects grow in size and feature. 
 protoc-gen-map helps manage those complexities. All that is required are the SQL statement and the corresponding proto messages
 
-Now Lets use a more coplex schema, one with has-one and has-many relationships.
+Now Lets use a more complex schema, one with has-one and has-many relationships.
 
 [![ComplexSchema](https://i.ibb.co/QQRpTCV/Complex-Schema.png)](https://i.ibb.co/QQRpTCV/Complex-Schema.png)
 

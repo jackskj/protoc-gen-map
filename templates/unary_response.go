@@ -17,10 +17,11 @@ func (m *{{ .ServiceName }}MapServer) {{ .MethodName }}(ctx context.Context, r *
         return &resp, nil
 	{{ else if eq .QueryType "Query" }}
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.{{ .MapperName }}Mapper == nil {
 		m.mapperGenMux.Lock()

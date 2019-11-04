@@ -45,10 +45,11 @@ func (m *OnlyQuryServiceMapServer) Query(ctx context.Context, r *OnlyQury) (*Onl
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n OnlyQury request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.QueryMapper == nil {
 		m.mapperGenMux.Lock()

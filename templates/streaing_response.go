@@ -8,10 +8,11 @@ func (m *{{ .ServiceName }}MapServer) {{ .MethodName }}(r *{{ .RequestName }}, s
 	}
 	rawSql := sqlBuffer.String()
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.{{ .MapperName }}Mapper == nil {
 		m.mapperGenMux.Lock()

@@ -28,8 +28,8 @@ message BlogIdsRequest {
 
 message BlogResponse {
   uint32 id = 1;
-  string title  = 2;
-  string author_id  = 3;
+  string title = 2;
+  string author_id = 3;
 }
 
 message DetailedBlogResponse {

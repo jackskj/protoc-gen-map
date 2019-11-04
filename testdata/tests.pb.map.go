@@ -63,10 +63,11 @@ func (m *TestReflectServiceMapServer) TypeCasting(ctx context.Context, r *EmptyR
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.TypeCastingMapper == nil {
 		m.mapperGenMux.Lock()
@@ -106,10 +107,11 @@ func (m *TestReflectServiceMapServer) IncorrectTypes(ctx context.Context, r *Typ
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n TypeRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.IncorrectTypesMapper == nil {
 		m.mapperGenMux.Lock()
@@ -171,10 +173,11 @@ func (m *TestMappingServiceMapServer) RepeatedAssociations(ctx context.Context, 
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.RepeatedAssociationsMapper == nil {
 		m.mapperGenMux.Lock()
@@ -214,10 +217,11 @@ func (m *TestMappingServiceMapServer) EmptyQuery(ctx context.Context, r *EmptyRe
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.EmptyQueryMapper == nil {
 		m.mapperGenMux.Lock()
@@ -274,10 +278,11 @@ func (m *TestMappingServiceMapServer) ExecAsQuery(ctx context.Context, r *EmptyR
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.ExecAsQueryMapper == nil {
 		m.mapperGenMux.Lock()
@@ -317,10 +322,11 @@ func (m *TestMappingServiceMapServer) UnclaimedColumns(ctx context.Context, r *E
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.UnclaimedColumnsMapper == nil {
 		m.mapperGenMux.Lock()
@@ -360,10 +366,11 @@ func (m *TestMappingServiceMapServer) MultipleRespForUnary(ctx context.Context, 
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.MultipleRespForUnaryMapper == nil {
 		m.mapperGenMux.Lock()
@@ -403,10 +410,11 @@ func (m *TestMappingServiceMapServer) RepeatedPrimative(ctx context.Context, r *
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.RepeatedPrimativeMapper == nil {
 		m.mapperGenMux.Lock()
@@ -446,10 +454,11 @@ func (m *TestMappingServiceMapServer) RepeatedEmpty(ctx context.Context, r *Empt
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.RepeatedEmptyMapper == nil {
 		m.mapperGenMux.Lock()
@@ -489,10 +498,11 @@ func (m *TestMappingServiceMapServer) EmptyNestedField(ctx context.Context, r *E
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.EmptyNestedFieldMapper == nil {
 		m.mapperGenMux.Lock()
@@ -532,10 +542,11 @@ func (m *TestMappingServiceMapServer) NoMatchingColumns(ctx context.Context, r *
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.NoMatchingColumnsMapper == nil {
 		m.mapperGenMux.Lock()
@@ -575,10 +586,11 @@ func (m *TestMappingServiceMapServer) AssociationInCollection(ctx context.Contex
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.AssociationInCollectionMapper == nil {
 		m.mapperGenMux.Lock()
@@ -618,10 +630,11 @@ func (m *TestMappingServiceMapServer) CollectionInAssociation(ctx context.Contex
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.CollectionInAssociationMapper == nil {
 		m.mapperGenMux.Lock()
@@ -661,10 +674,11 @@ func (m *TestMappingServiceMapServer) RepeatedTimestamp(ctx context.Context, r *
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.RepeatedTimestampMapper == nil {
 		m.mapperGenMux.Lock()
@@ -703,10 +717,11 @@ func (m *TestMappingServiceMapServer) NullResoultsForSubmaps(r *EmptyRequest, st
 	}
 	rawSql := sqlBuffer.String()
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.NullResoultsForSubmapsMapper == nil {
 		m.mapperGenMux.Lock()
@@ -745,10 +760,11 @@ func (m *TestMappingServiceMapServer) SimpleEnum(ctx context.Context, r *EmptyRe
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.SimpleEnumMapper == nil {
 		m.mapperGenMux.Lock()
@@ -788,10 +804,11 @@ func (m *TestMappingServiceMapServer) NestedEnum(ctx context.Context, r *EmptyRe
 	rawSql := sqlBuffer.String()
 
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.NestedEnumMapper == nil {
 		m.mapperGenMux.Lock()

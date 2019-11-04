@@ -56,7 +56,7 @@ dependencies = {
                 "https://storage.googleapis.com/bazel-mirror/github.com/bazelbuild/bazel-gazelle/releases/download/v0.19.0/bazel-gazelle-v0.19.0.tar.gz",
                 "https://github.com/bazelbuild/bazel-gazelle/releases/download/v0.19.0/bazel-gazelle-v0.19.0.tar.gz",
         ],
-        "sha256": "be9296bfd64882e3c08e3283c58fcb461fa6dd3c171764fcc4cf322f60615a9b",
+        "sha256": "41bff2a0b32b02f20c227d234aa25ef3783998e5453f7eade929704dcff7cd4b",
         }
 }
 

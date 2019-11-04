@@ -46,10 +46,11 @@ func (m *OnlyStreamingServiceMapServer) Stream(r *OnlyStreaming, stream OnlyStre
 	}
 	rawSql := sqlBuffer.String()
 	rows, err := m.DB.Query(rawSql)
-	defer rows.Close()
 	if err != nil {
 		log.Printf("error executing query.\n OnlyStreaming request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
 	}
 	if m.StreamMapper == nil {
 		m.mapperGenMux.Lock()

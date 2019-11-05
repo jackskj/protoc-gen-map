@@ -385,11 +385,15 @@ message InsertLoginRequest {
  ```
 2. protoc-gen-map automatically removes any duplicate rows returned by your query. If this is not a desired outcome, you should include a uniquely identifiable columns in your query and the corresponding fields in your message.
 
+3. Data mapping blueprint is generated with the first query request. Successive requests should be consistent. For example. column names should not change depending on the request message.
 
-### Todos
-1. Implement sql.Tx
-2. Allow developer to define functions to run before/after executing query.
-3. Code generation for python.
+### Roadmap
+
+| Goal | Status | Label |
+| :--- | --- | --- | 
+| proto enum support | `ready` | `enhancement` |
+| Allow developer to specify callback methods | `in progress` | `enhancement` |
+| Add parameterized query support | `needs review` | `enhancement` |
 
 ### License
 Apache License

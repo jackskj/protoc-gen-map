@@ -52,6 +52,16 @@ select
 from author A where id in (1,2)
 {{ end }}
 
+{{ define "NoRespForUnary" }}
+select
+       A.username          as  author_username,
+       A.password          as  author_password,
+       A.email             as  author_email,
+       A.bio               as  author_bio,
+       A.favourite_section as  author_favourite_section
+from author A where id in (999)
+{{ end }}
+
 {{ define "RepeatedPrimative" }}
 {{ end }}
 
@@ -135,3 +145,60 @@ select
         2 as nested_id,
         'egg' as nested_enum
 {{ end }}
+
+{{ define "Blog" }}
+select id from blog B order by id limit 1
+{{ end }}
+
+{{ define "Blogs" }}
+select id from blog B order by id
+{{ end }}
+
+{{ define "BlogB" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsB" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogBF" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsBF" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogA" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsA" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogAF" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsAF" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogC" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsC" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogCF" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsCF" }}
+{{ template "Blogs" }}
+{{ end }}
+

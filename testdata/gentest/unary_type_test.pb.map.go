@@ -31,18 +31,49 @@ var _ = math.Inf
 // 3. Begin serving
 
 type ExecTypeServiceMapServer struct {
-	DB              *sql.DB
-	CreateMapper    *mapper.Mapper
-	DeleteMapper    *mapper.Mapper
-	ExecFiveMapper  *mapper.Mapper
-	ExecFourMapper  *mapper.Mapper
-	ExecOneMapper   *mapper.Mapper
-	ExecThreeMapper *mapper.Mapper
-	ExecTwoMapper   *mapper.Mapper
-	InSeRtMapper    *mapper.Mapper
-	UpdateMapper    *mapper.Mapper
-
+	DB           *sql.DB
 	mapperGenMux sync.Mutex
+
+	CreateMapper       *mapper.Mapper
+	CreateCallbacks    ExecTypeServiceCreateCallbacks
+	DeleteMapper       *mapper.Mapper
+	DeleteCallbacks    ExecTypeServiceDeleteCallbacks
+	ExecFiveMapper     *mapper.Mapper
+	ExecFiveCallbacks  ExecTypeServiceExecFiveCallbacks
+	ExecFourMapper     *mapper.Mapper
+	ExecFourCallbacks  ExecTypeServiceExecFourCallbacks
+	ExecOneMapper      *mapper.Mapper
+	ExecOneCallbacks   ExecTypeServiceExecOneCallbacks
+	ExecThreeMapper    *mapper.Mapper
+	ExecThreeCallbacks ExecTypeServiceExecThreeCallbacks
+	ExecTwoMapper      *mapper.Mapper
+	ExecTwoCallbacks   ExecTypeServiceExecTwoCallbacks
+	InSeRtMapper       *mapper.Mapper
+	InSeRtCallbacks    ExecTypeServiceInSeRtCallbacks
+	UpdateMapper       *mapper.Mapper
+	UpdateCallbacks    ExecTypeServiceUpdateCallbacks
+}
+
+type ExecTypeServiceExecOneCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*EmptyResponse, error)
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecOneBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.ExecOneCallbacks.BeforeQueryCallback = append(m.ExecOneCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecOneAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.ExecOneCallbacks.AfterQueryCallback = append(m.ExecOneCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecOneCache(cache func(queryString string, req *EmptyRequest) (*EmptyResponse, error)) {
+	m.ExecOneCallbacks.Cache = cache
 }
 
 func (m *ExecTypeServiceMapServer) ExecOne(ctx context.Context, r *EmptyRequest) (*EmptyResponse, error) {
@@ -51,15 +82,59 @@ func (m *ExecTypeServiceMapServer) ExecOne(ctx context.Context, r *EmptyRequest)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.ExecOneCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.ExecOneCallbacks.Cache != nil {
+		if resp, err := m.ExecOneCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.ExecOneCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := EmptyResponse{}
 	return &resp, nil
 
+}
+
+type ExecTypeServiceExecTwoCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *EMpTyResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*EMpTyResponse, error)
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecTwoBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.ExecTwoCallbacks.BeforeQueryCallback = append(m.ExecTwoCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecTwoAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *EMpTyResponse) error) {
+	for _, callback := range callbacks {
+		m.ExecTwoCallbacks.AfterQueryCallback = append(m.ExecTwoCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecTwoCache(cache func(queryString string, req *EmptyRequest) (*EMpTyResponse, error)) {
+	m.ExecTwoCallbacks.Cache = cache
 }
 
 func (m *ExecTypeServiceMapServer) ExecTwo(ctx context.Context, r *EmptyRequest) (*EMpTyResponse, error) {
@@ -68,15 +143,59 @@ func (m *ExecTypeServiceMapServer) ExecTwo(ctx context.Context, r *EmptyRequest)
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.ExecTwoCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.ExecTwoCallbacks.Cache != nil {
+		if resp, err := m.ExecTwoCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.ExecTwoCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := EMpTyResponse{}
 	return &resp, nil
 
+}
+
+type ExecTypeServiceExecThreeCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *NilResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*NilResponse, error)
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecThreeBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.ExecThreeCallbacks.BeforeQueryCallback = append(m.ExecThreeCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecThreeAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *NilResponse) error) {
+	for _, callback := range callbacks {
+		m.ExecThreeCallbacks.AfterQueryCallback = append(m.ExecThreeCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecThreeCache(cache func(queryString string, req *EmptyRequest) (*NilResponse, error)) {
+	m.ExecThreeCallbacks.Cache = cache
 }
 
 func (m *ExecTypeServiceMapServer) ExecThree(ctx context.Context, r *EmptyRequest) (*NilResponse, error) {
@@ -85,15 +204,59 @@ func (m *ExecTypeServiceMapServer) ExecThree(ctx context.Context, r *EmptyReques
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.ExecThreeCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.ExecThreeCallbacks.Cache != nil {
+		if resp, err := m.ExecThreeCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.ExecThreeCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := NilResponse{}
 	return &resp, nil
 
+}
+
+type ExecTypeServiceExecFourCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *NullResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*NullResponse, error)
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecFourBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.ExecFourCallbacks.BeforeQueryCallback = append(m.ExecFourCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecFourAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *NullResponse) error) {
+	for _, callback := range callbacks {
+		m.ExecFourCallbacks.AfterQueryCallback = append(m.ExecFourCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecFourCache(cache func(queryString string, req *EmptyRequest) (*NullResponse, error)) {
+	m.ExecFourCallbacks.Cache = cache
 }
 
 func (m *ExecTypeServiceMapServer) ExecFour(ctx context.Context, r *EmptyRequest) (*NullResponse, error) {
@@ -102,15 +265,59 @@ func (m *ExecTypeServiceMapServer) ExecFour(ctx context.Context, r *EmptyRequest
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.ExecFourCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.ExecFourCallbacks.Cache != nil {
+		if resp, err := m.ExecFourCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.ExecFourCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := NullResponse{}
 	return &resp, nil
 
+}
+
+type ExecTypeServiceExecFiveCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *NuLlResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*NuLlResponse, error)
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecFiveBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.ExecFiveCallbacks.BeforeQueryCallback = append(m.ExecFiveCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecFiveAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *NuLlResponse) error) {
+	for _, callback := range callbacks {
+		m.ExecFiveCallbacks.AfterQueryCallback = append(m.ExecFiveCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterExecFiveCache(cache func(queryString string, req *EmptyRequest) (*NuLlResponse, error)) {
+	m.ExecFiveCallbacks.Cache = cache
 }
 
 func (m *ExecTypeServiceMapServer) ExecFive(ctx context.Context, r *EmptyRequest) (*NuLlResponse, error) {
@@ -119,15 +326,59 @@ func (m *ExecTypeServiceMapServer) ExecFive(ctx context.Context, r *EmptyRequest
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.ExecFiveCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.ExecFiveCallbacks.Cache != nil {
+		if resp, err := m.ExecFiveCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.ExecFiveCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := NuLlResponse{}
 	return &resp, nil
 
+}
+
+type ExecTypeServiceInSeRtCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*EmptyResponse, error)
+}
+
+func (m *ExecTypeServiceMapServer) RegisterInSeRtBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.InSeRtCallbacks.BeforeQueryCallback = append(m.InSeRtCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterInSeRtAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.InSeRtCallbacks.AfterQueryCallback = append(m.InSeRtCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterInSeRtCache(cache func(queryString string, req *EmptyRequest) (*EmptyResponse, error)) {
+	m.InSeRtCallbacks.Cache = cache
 }
 
 func (m *ExecTypeServiceMapServer) InSeRt(ctx context.Context, r *EmptyRequest) (*EmptyResponse, error) {
@@ -136,15 +387,59 @@ func (m *ExecTypeServiceMapServer) InSeRt(ctx context.Context, r *EmptyRequest) 
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InSeRtCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InSeRtCallbacks.Cache != nil {
+		if resp, err := m.InSeRtCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.InSeRtCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := EmptyResponse{}
 	return &resp, nil
 
+}
+
+type ExecTypeServiceDeleteCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *SampleResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*SampleResponse, error)
+}
+
+func (m *ExecTypeServiceMapServer) RegisterDeleteBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.DeleteCallbacks.BeforeQueryCallback = append(m.DeleteCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterDeleteAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *SampleResponse) error) {
+	for _, callback := range callbacks {
+		m.DeleteCallbacks.AfterQueryCallback = append(m.DeleteCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterDeleteCache(cache func(queryString string, req *EmptyRequest) (*SampleResponse, error)) {
+	m.DeleteCallbacks.Cache = cache
 }
 
 func (m *ExecTypeServiceMapServer) Delete(ctx context.Context, r *EmptyRequest) (*SampleResponse, error) {
@@ -153,15 +448,59 @@ func (m *ExecTypeServiceMapServer) Delete(ctx context.Context, r *EmptyRequest) 
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.DeleteCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.DeleteCallbacks.Cache != nil {
+		if resp, err := m.DeleteCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.DeleteCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := SampleResponse{}
 	return &resp, nil
 
+}
+
+type ExecTypeServiceUpdateCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *SampleResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*SampleResponse, error)
+}
+
+func (m *ExecTypeServiceMapServer) RegisterUpdateBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.UpdateCallbacks.BeforeQueryCallback = append(m.UpdateCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterUpdateAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *SampleResponse) error) {
+	for _, callback := range callbacks {
+		m.UpdateCallbacks.AfterQueryCallback = append(m.UpdateCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterUpdateCache(cache func(queryString string, req *EmptyRequest) (*SampleResponse, error)) {
+	m.UpdateCallbacks.Cache = cache
 }
 
 func (m *ExecTypeServiceMapServer) Update(ctx context.Context, r *EmptyRequest) (*SampleResponse, error) {
@@ -170,15 +509,59 @@ func (m *ExecTypeServiceMapServer) Update(ctx context.Context, r *EmptyRequest) 
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.UpdateCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.UpdateCallbacks.Cache != nil {
+		if resp, err := m.UpdateCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.UpdateCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := SampleResponse{}
 	return &resp, nil
 
+}
+
+type ExecTypeServiceCreateCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *SampleResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*SampleResponse, error)
+}
+
+func (m *ExecTypeServiceMapServer) RegisterCreateBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.CreateCallbacks.BeforeQueryCallback = append(m.CreateCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterCreateAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *SampleResponse) error) {
+	for _, callback := range callbacks {
+		m.CreateCallbacks.AfterQueryCallback = append(m.CreateCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *ExecTypeServiceMapServer) RegisterCreateCache(cache func(queryString string, req *EmptyRequest) (*SampleResponse, error)) {
+	m.CreateCallbacks.Cache = cache
 }
 
 func (m *ExecTypeServiceMapServer) Create(ctx context.Context, r *EmptyRequest) (*SampleResponse, error) {
@@ -187,11 +570,33 @@ func (m *ExecTypeServiceMapServer) Create(ctx context.Context, r *EmptyRequest) 
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.CreateCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.CreateCallbacks.Cache != nil {
+		if resp, err := m.CreateCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	for _, callback := range m.CreateCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 	resp := SampleResponse{}
 	return &resp, nil

@@ -3,9 +3,11 @@ package mapper_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -17,6 +19,8 @@ import (
 	ex "github.com/jackskj/protoc-gen-map/examples"
 	td "github.com/jackskj/protoc-gen-map/testdata"
 	"github.com/jackskj/protoc-gen-map/testdata/initdb"
+	diff "github.com/yudai/gojsondiff"
+	"github.com/yudai/gojsondiff/formatter"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -24,28 +28,31 @@ import (
 const bufSize = 1024 * 1024
 
 var (
-	marsh     = jsonpb.Marshaler{}
-	isVerbose = true
-	initDB    = true
+	marsh  = jsonpb.Marshaler{}
+	update = false
+	initDB = true
 )
 
 var (
-	conn       *grpc.ClientConn
-	ctx        context.Context
-	db         *sql.DB
-	grpcServer *grpc.Server
-	lis        *bufconn.Listener
-	requests   *td.Requests
+	conn        *grpc.ClientConn
+	ctx         context.Context
+	db          *sql.DB
+	grpcServer  *grpc.Server
+	lis         *bufconn.Listener
+	requests    *td.Requests
+	testResults map[string]interface{}
 
 	blogClient        ex.BlogQueryServiceClient
 	reflectClient     td.TestReflectServiceClient
 	testMappingClient td.TestMappingServiceClient
+	tdSrv             td.TestMappingServiceMapServer
 )
 
 // Generate test data before running tests
 // Start local server with bufconn
 func setup() {
 	requests = td.GenerateRequests()
+	testResults = make(map[string]interface{})
 	db = td.GetPG()
 	ctx = context.Background()
 	lis = bufconn.Listen(bufSize)
@@ -54,7 +61,11 @@ func setup() {
 	ex.RegisterBlogQueryServiceServer(grpcServer, &ex.BlogQueryServiceMapServer{DB: db})
 	initdb.RegisterInitServiceServer(grpcServer, &initdb.InitServiceMapServer{DB: db})
 	td.RegisterTestReflectServiceServer(grpcServer, &td.TestReflectServiceMapServer{DB: db})
-	td.RegisterTestMappingServiceServer(grpcServer, &td.TestMappingServiceMapServer{DB: db})
+	tdSrv = td.TestMappingServiceMapServer{DB: db}
+	td.RegisterTestMappingServiceServer(grpcServer, &tdSrv)
+
+	registerCallbacks()
+	registerFailedCallbacks()
 
 	go func() {
 		if err := grpcServer.Serve(lis); err != nil {
@@ -75,13 +86,21 @@ func setup() {
 }
 
 func TestMain(m *testing.M) {
-	verbosePtr := flag.Bool("verbose", false, "run verboce, prints proto responses")
+	updatePtr := flag.Bool("update", false, "update the golden file, results are always considered correct")
 	initdbPtr := flag.Bool("initdb", true, "initialize and populate testing database")
 	flag.Parse()
-	isVerbose = *verbosePtr
+	update = *updatePtr
 	initDB = *initdbPtr
 	setup()
 	code := m.Run()
+	goldenFile := "../testdata/mapper.golden"
+	if update {
+		// update golden file
+		updateGoldenFile(goldenFile)
+	} else {
+		// compare existing results
+		compareResults(goldenFile)
+	}
 	teardown()
 	os.Exit(code)
 }
@@ -112,10 +131,8 @@ func createDatabase() {
 func TestOneMessageStreamingResponse(t *testing.T) {
 	req := ex.BlogIdsRequest{Ids: []uint32{1}, Titles: []string{"abc"}}
 	resp, err := blogClient.SelectBlogs(ctx, &req)
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	blogStreamReader(resp)
+	sResp, sErr := blogStreamReader(resp)
+	protoResult("blogClient.SelectBlogs_1", sResp, err, sErr, false)
 }
 
 func TestEmptyMessageStreamingResponse(t *testing.T) {
@@ -124,10 +141,8 @@ func TestEmptyMessageStreamingResponse(t *testing.T) {
 		Titles: []string{"a"},
 	}
 	resp, err := blogClient.SelectBlogs(ctx, &req)
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	blogStreamReader(resp)
+	sResp, sErr := blogStreamReader(resp)
+	protoResult("blogClient.SelectBlogs_2", sResp, err, sErr, false)
 }
 
 func TestStreamingResponse(t *testing.T) {
@@ -136,10 +151,8 @@ func TestStreamingResponse(t *testing.T) {
 		Titles: []string{"a"},
 	}
 	resp, err := blogClient.SelectBlogs(ctx, &req)
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	blogStreamReader(resp)
+	sResp, sErr := blogStreamReader(resp)
+	protoResult("blogClient.SelectBlogs_3", sResp, err, sErr, false)
 }
 
 func TestComplexStreamingResponse(t *testing.T) {
@@ -148,10 +161,8 @@ func TestComplexStreamingResponse(t *testing.T) {
 		Titles: []string{"a"},
 	}
 	resp, err := blogClient.SelectDetailedBlogs(ctx, &req)
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	detailedBlogStreamReader(resp)
+	sResp, sErr := detailedBlogStreamReader(resp)
+	protoResult("blogClient.SelectDetailedBlogs", sResp, err, sErr, false)
 }
 
 func TestMappingService(t *testing.T) {
@@ -161,161 +172,210 @@ func TestMappingService(t *testing.T) {
 		err   error
 	)
 	resp, err = testMappingClient.RepeatedAssociations(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.RepeatedAssociations", resp, err, nil, false)
 	resp, err = testMappingClient.EmptyQuery(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.EmptyQuery", resp, err, nil, false)
 	resp, err = testMappingClient.InsertQueryAsExec(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.InsertQueryAsExec", resp, err, nil, false)
 	resp, err = testMappingClient.ExecAsQuery(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.ExecAsQuery", resp, err, nil, false)
 	resp, err = testMappingClient.UnclaimedColumns(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.UnclaimedColumns", resp, err, nil, false)
 	resp, err = testMappingClient.MultipleRespForUnary(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
-	resp, err = testMappingClient.RepeatedPrimative(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Printf("stream error: %s\n", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.MultipleRespForUnary", resp, err, nil, false)
+	resp, err = testMappingClient.NoRespForUnary(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.NoRespForUnary", resp, err, nil, false)
 	resp, err = testMappingClient.RepeatedEmpty(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.RepeatedEmpty", resp, err, nil, false)
 	resp, err = testMappingClient.EmptyNestedField(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.EmptyNestedField", resp, err, nil, false)
 	resp, err = testMappingClient.NoMatchingColumns(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.NoMatchingColumns", resp, err, nil, false)
 	resp, err = testMappingClient.AssociationInCollection(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.AssociationInCollection", resp, err, nil, false)
 	resp, err = testMappingClient.CollectionInAssociation(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
-	resp, err = testMappingClient.RepeatedTimestamp(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Printf("stream error: %s\n", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.CollectionInAssociation", resp, err, nil, false)
 	resp, err = testMappingClient.SimpleEnum(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Printf("stream error: %s\n", err)
-	}
-	if isVerbose {
-		printResp(resp)
-	}
+	protoResult("testMappingClient.SimpleEnum", resp, err, nil, false)
 	resp, err = testMappingClient.NestedEnum(ctx, &td.EmptyRequest{})
-	if err != nil {
-		log.Printf("stream error: %s\n", err)
-	}
-	if isVerbose {
-		log.Printf("  asdasdasdsa: %s\n", err)
-		printResp(resp)
-	}
+	protoResult("testMappingClient.NestedEnum", resp, err, nil, false)
+
+	resp, err = testMappingClient.RepeatedTimestamp(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.RepeatedTimestamp", resp, err, nil, true)
+	resp, err = testMappingClient.RepeatedPrimative(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.RepeatedPrimative", resp, err, nil, true)
+
 	posts, err = testMappingClient.NullResoultsForSubmaps(ctx, &td.EmptyRequest{})
+	sResp, sErr := postReader(posts)
+	protoResult("testMappingClient.NullResoultsForSubmaps", sResp, err, sErr, false)
+}
+
+func TestUnaryCallbacks(t *testing.T) {
+	resp, err := testMappingClient.BlogB(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.BlogB", resp, err, nil, false)
+	resp, err = testMappingClient.BlogA(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.BlogA", resp, err, nil, false)
+	resp, err = testMappingClient.BlogC(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.BlogC", resp, err, nil, false)
+}
+
+func TestStreamingCallbacks(t *testing.T) {
+	resp, err := testMappingClient.BlogsB(ctx, &td.EmptyRequest{})
+	sResp, sErr := blogStreamReader(resp)
+	protoResult("testMappingClient.BlogsB", sResp, err, sErr, false)
+	sResp, sErr = blogStreamReader(resp)
+	resp, err = testMappingClient.BlogsA(ctx, &td.EmptyRequest{})
+	sResp, sErr = blogStreamReader(resp)
+	protoResult("testMappingClient.BlogsA", sResp, err, sErr, false)
+	sResp, sErr = blogStreamReader(resp)
+	resp, err = testMappingClient.BlogsC(ctx, &td.EmptyRequest{})
+	sResp, sErr = blogStreamReader(resp)
+	protoResult("testMappingClient.BlogsC", sResp, err, sErr, false)
+}
+
+func TestFailedUnaryCallbacks(t *testing.T) {
+	resp, err := testMappingClient.BlogBF(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.BlogBF", resp, err, nil, true)
+	resp, err = testMappingClient.BlogAF(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.BlogAF", resp, err, nil, true)
+	resp, err = testMappingClient.BlogCF(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.BlogCF", resp, err, nil, true)
+}
+
+func TestFailedStreamingCallbacks(t *testing.T) {
+	resp, err := testMappingClient.BlogsBF(ctx, &td.EmptyRequest{})
+	sResp, sErr := blogStreamReader(resp)
+	protoResult("testMappingClient.BlogsBF", sResp, err, sErr, true)
+	sResp, sErr = blogStreamReader(resp)
+	resp, err = testMappingClient.BlogsAF(ctx, &td.EmptyRequest{})
+	sResp, sErr = blogStreamReader(resp)
+	protoResult("testMappingClient.BlogsAF", sResp, err, sErr, true)
+	sResp, sErr = blogStreamReader(resp)
+	resp, err = testMappingClient.BlogsCF(ctx, &td.EmptyRequest{})
+	sResp, sErr = blogStreamReader(resp)
+	protoResult("testMappingClient.BlogsCF", sResp, err, sErr, true)
+}
+
+func blogStreamReader(stream ex.BlogQueryService_SelectBlogsClient) ([]proto.Message, error) {
+	var responses []proto.Message
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else {
+			responses = append(responses, resp)
+		}
+		if err != nil {
+			return responses, err
+		}
+	}
+	return responses, nil
+}
+
+func detailedBlogStreamReader(stream ex.BlogQueryService_SelectDetailedBlogsClient) ([]proto.Message, error) {
+	var responses []proto.Message
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else {
+			responses = append(responses, resp)
+		}
+		if err != nil {
+			return responses, err
+		}
+	}
+	return responses, nil
+}
+
+func postReader(stream td.TestMappingService_NullResoultsForSubmapsClient) ([]proto.Message, error) {
+	var responses []proto.Message
+	for {
+		resp, err := stream.Recv()
+		if err == io.EOF {
+			break
+		} else {
+			responses = append(responses, resp)
+		}
+		if err != nil {
+			return responses, err
+		}
+	}
+	return responses, nil
+}
+
+func registerCallbacks() {
+	tdSrv.RegisterBlogBBeforeQueryCallback(td.BlogBeforeQueryCallback)
+	tdSrv.RegisterBlogsBBeforeQueryCallback(td.BlogsBeforeQueryCallback)
+	tdSrv.RegisterBlogAAfterQueryCallback(td.BlogAfterQueryCallback)
+	tdSrv.RegisterBlogsAAfterQueryCallback(td.BlogsAfterQueryCallback)
+	tdSrv.RegisterBlogCCache(td.BlogCache)
+	tdSrv.RegisterBlogsCCache(td.BlogsCache)
+}
+
+func registerFailedCallbacks() {
+	tdSrv.RegisterBlogBFBeforeQueryCallback(td.FailedBlogBeforeQueryCallback)
+	tdSrv.RegisterBlogsBFBeforeQueryCallback(td.FailedBlogsBeforeQueryCallback)
+	tdSrv.RegisterBlogAFAfterQueryCallback(td.FailedBlogAfterQueryCallback)
+	tdSrv.RegisterBlogsAFAfterQueryCallback(td.FailedBlogsAfterQueryCallback)
+	tdSrv.RegisterBlogCFCache(td.FailedBlogCache)
+	tdSrv.RegisterBlogsCFCache(td.FailedBlogsCache)
+}
+
+func protoResult(testName string, resp interface{}, err error, sErr error, expectsErr bool) {
+	if expectsErr == false {
+		if err != nil {
+			log.Fatalln("protoc-gen-map error with "+testName+":%v", err)
+		}
+		if sErr != nil {
+			log.Fatalln("protoc-gen-map error with "+testName+":%v", sErr)
+		}
+	}
+	if expectsErr == false {
+		testResults[testName] = resp
+	} else if expectsErr == true {
+		testResults[testName] = fmt.Sprintf("%v", []error{err, sErr})
+	}
+}
+
+func updateGoldenFile(goldenFile string) {
+	jsonResult := generateResultBytes()
+	if err := ioutil.WriteFile(goldenFile, jsonResult, 0644); err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func compareResults(goldenFile string) {
+	goldenFileJson, err := ioutil.ReadFile(goldenFile)
 	if err != nil {
-		log.Fatalf("stream error: %s", err)
+		log.Fatalln(err)
 	}
-	postReader(posts)
-}
 
-func blogStreamReader(stream ex.BlogQueryService_SelectBlogsClient) {
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatalf("stream error: %s", err)
-		}
-		if isVerbose {
-			printResp(resp)
-		}
+	jsonResult := generateResultBytes()
+
+	resultDiff := diff.New()
+	d, err := resultDiff.Compare(goldenFileJson, jsonResult)
+	if err != nil {
+		log.Fatalln(err)
 	}
-}
-
-func detailedBlogStreamReader(stream ex.BlogQueryService_SelectDetailedBlogsClient) {
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatalf("stream error: %s", err)
-		}
-		if isVerbose {
-			printResp(resp)
-		}
+	formatter := formatter.NewDeltaFormatter()
+	diffString, err := formatter.Format(d)
+	if diffString != "{}\n" {
+		log.Println("Results Do Not Match Golden File, " +
+			"if this is expecred result with go test with --update")
+		log.Fatalln(diffString)
 	}
 }
 
-func postReader(stream td.TestMappingService_NullResoultsForSubmapsClient) {
-	for {
-		resp, err := stream.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			log.Fatalf("stream error: %s", err)
-		}
-		if isVerbose {
-			printResp(resp)
-		}
+func generateResultBytes() []byte {
+	var jsonResult []byte
+	testResults["callbacks"] = td.CallbackPool
+	if r, err := json.MarshalIndent(testResults, "", "    "); err != nil {
+		log.Fatalln(err)
+	} else {
+		jsonResult = r
 	}
+	return jsonResult
 }
 
 func teardown() {
@@ -324,8 +384,4 @@ func teardown() {
 
 func bufDialer(string, time.Duration) (net.Conn, error) {
 	return lis.Dial()
-}
-func printResp(resp proto.Message) {
-	fmt.Println(marsh.MarshalToString(resp))
-	fmt.Println()
 }

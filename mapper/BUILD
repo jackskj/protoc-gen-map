@@ -20,6 +20,9 @@ go_test(
         "mapper_test.go",
         "reflect_test.go",
     ],
+    data = [
+        "//testdata:mapper.golden",
+    ],
     embed = [":go_default_library"],
     deps = [
         "//examples:go_default_library",
@@ -27,6 +30,8 @@ go_test(
         "//testdata/initdb:go_default_library",
         "@com_github_golang_protobuf//jsonpb:go_default_library_gen",
         "@com_github_golang_protobuf//proto:go_default_library",
+        "@com_github_yudai_gojsondiff//:go_default_library",
+        "@com_github_yudai_gojsondiff//formatter:go_default_library",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//test/bufconn:go_default_library",
     ],

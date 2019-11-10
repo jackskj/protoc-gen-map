@@ -39,6 +39,7 @@ var (
 // each RPC and therefore SQL has corresponding  Mapper
 type Mapper struct {
 	SqlMap *SqlMap //Mapping of top level element, proto response message
+	Name   string  //Name of the corresponding RPC
 	Logs   map[string]bool
 	Error  error
 
@@ -81,7 +82,8 @@ type SqlMap struct {
 	//Collections are has-many relationships which correspond to nested and repeated proto messages
 	Collections map[mapName]*SqlMap
 
-	Error error // breaking issue
+	Error error    // breaking issue
+	Logs  []string // non-breaking issue
 }
 
 // Each RPC call generates ResponseMapping, this is responsible for storing data in structure matching the proto response
@@ -123,7 +125,7 @@ type SqlMapVals struct {
 
 // Generates mapper instance based on proto response type and response of sql query
 // This is done once after the first response is retrieved
-func New(rows *db.Rows, protoResp interface{}) (*Mapper, error) {
+func New(name string, rows *db.Rows, protoResp interface{}) (*Mapper, error) {
 	columns, _ := rows.Columns()
 	columnTypes, _ := rows.ColumnTypes()
 	sqlMap := SqlMap{
@@ -132,6 +134,7 @@ func New(rows *db.Rows, protoResp interface{}) (*Mapper, error) {
 		ProtoStruct: reflect.TypeOf(protoResp),
 	}
 	mapper := Mapper{
+		Name:        name,
 		columnTypes: columnTypes,
 		SqlMap:      &sqlMap,
 		Logs:        make(map[string]bool),
@@ -144,6 +147,7 @@ func New(rows *db.Rows, protoResp interface{}) (*Mapper, error) {
 	if sqlMap.Error != nil {
 		return nil, sqlMap.Error
 	}
+	logSqlMap(&sqlMap, name)
 	return &mapper, nil
 }
 
@@ -253,7 +257,7 @@ func generateSqlMap(sqlMap *SqlMap, protoMsg interface{}, columns []string) {
 		sqlMap.Error = errors.New("protoc-gen-map: No allowed fileds were found in " + string(sqlMap.Name) +
 			". At least one primative or timestamp.Timestamp filed must be present in a message.")
 	} else if len(sqlMapColumns) == 0 {
-		log.Println("protoc-gen-map: No matching columns were found in sql response for " + string(sqlMap.Name) +
+		sqlMap.Logs = append(sqlMap.Logs, "No allowed fileds were found in "+string(sqlMap.Name)+
 			". Message will be ommitted for this query")
 	} else {
 		sqlMap.Columns = sqlMapColumns
@@ -514,11 +518,27 @@ func RegisterEnums(enums map[string]map[string]int32) {
 	}
 }
 
-//If non-breaking issues are found, this function prints them
+//If non-breaking issues are found while generating sqlmap, this function prints them
+func logSqlMap(sqlm *SqlMap, name string) {
+	if len(sqlm.Logs) != 0 {
+		for _, message := range sqlm.Logs {
+			log.Println("protoc-gen-map, " + name + ": " + message)
+		}
+	}
+	for _, associationSubMap := range sqlm.Associations {
+		logSqlMap(associationSubMap, name)
+	}
+	for _, collectionSubMap := range sqlm.Collections {
+		logSqlMap(collectionSubMap, name)
+	}
+
+}
+
+//If non-breaking issues are found while mapping, this function prints them
 func (m *Mapper) Log() {
 	if len(m.Logs) != 0 {
 		for message, _ := range m.Logs {
-			log.Println("protoc-gen-map: " + message)
+			log.Println("protoc-gen-map, " + m.Name + ": " + message)
 			delete(m.Logs, message)
 		}
 	}

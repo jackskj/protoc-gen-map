@@ -92,11 +92,12 @@ func (p *SqlPlugin) generateServiceServer(service *descriptor.ServiceDescriptorP
 	}
 	for _, method := range service.GetMethod() {
 		p.server.MapperNames[method.GetName()] = true
-		if len(p.server.MapperNames) != 0 {
-			p.Pkg["mapper"] = true
-		}
+	}
+	if len(p.server.MapperNames) != 0 {
+		p.Pkg["mapper"] = true
 	}
 	err := p.genTemplate.ExecuteTemplate(&serverBuff, "server", p.server)
+
 	if err != nil {
 		p.Error(err.Error())
 	}

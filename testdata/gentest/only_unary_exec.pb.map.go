@@ -32,9 +32,32 @@ var _ = math.Inf
 
 type OnlyExecServiceMapServer struct {
 	DB           *sql.DB
-	InsertMapper *mapper.Mapper
-
 	mapperGenMux sync.Mutex
+
+	InsertMapper    *mapper.Mapper
+	InsertCallbacks OnlyExecServiceInsertCallbacks
+}
+
+type OnlyExecServiceInsertCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *OnlyExec) error
+	AfterQueryCallback  []func(queryString string, req *OnlyExec, resp *OnlyExec) error
+	Cache               func(queryString string, req *OnlyExec) (*OnlyExec, error)
+}
+
+func (m *OnlyExecServiceMapServer) RegisterInsertBeforeQueryCallback(callbacks ...func(queryString string, req *OnlyExec) error) {
+	for _, callback := range callbacks {
+		m.InsertCallbacks.BeforeQueryCallback = append(m.InsertCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *OnlyExecServiceMapServer) RegisterInsertAfterQueryCallback(callbacks ...func(queryString string, req *OnlyExec, resp *OnlyExec) error) {
+	for _, callback := range callbacks {
+		m.InsertCallbacks.AfterQueryCallback = append(m.InsertCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *OnlyExecServiceMapServer) RegisterInsertCache(cache func(queryString string, req *OnlyExec) (*OnlyExec, error)) {
+	m.InsertCallbacks.Cache = cache
 }
 
 func (m *OnlyExecServiceMapServer) Insert(ctx context.Context, r *OnlyExec) (*OnlyExec, error) {
@@ -43,11 +66,33 @@ func (m *OnlyExecServiceMapServer) Insert(ctx context.Context, r *OnlyExec) (*On
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InsertCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InsertCallbacks.Cache != nil {
+		if resp, err := m.InsertCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n OnlyExec request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	for _, callback := range m.InsertCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 	resp := OnlyExec{}
 	return &resp, nil

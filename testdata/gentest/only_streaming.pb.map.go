@@ -34,27 +34,72 @@ var _ = math.Inf
 
 type OnlyStreamingServiceMapServer struct {
 	DB           *sql.DB
-	StreamMapper *mapper.Mapper
-
 	mapperGenMux sync.Mutex
+
+	StreamMapper    *mapper.Mapper
+	StreamCallbacks OnlyStreamingServiceStreamCallbacks
+}
+
+type OnlyStreamingServiceStreamCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *OnlyStreaming) error
+	AfterQueryCallback  []func(queryString string, req *OnlyStreaming, resp []*OnlyStreaming) error
+	Cache               func(queryString string, req *OnlyStreaming) ([]*OnlyStreaming, error)
+}
+
+func (m *OnlyStreamingServiceMapServer) RegisterStreamBeforeQueryCallback(callbacks ...func(queryString string, req *OnlyStreaming) error) {
+	for _, callback := range callbacks {
+		m.StreamCallbacks.BeforeQueryCallback = append(m.StreamCallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *OnlyStreamingServiceMapServer) RegisterStreamAfterQueryCallback(callbacks ...func(queryString string, req *OnlyStreaming, resp []*OnlyStreaming) error) {
+	for _, callback := range callbacks {
+		m.StreamCallbacks.AfterQueryCallback = append(m.StreamCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *OnlyStreamingServiceMapServer) RegisterStreamCache(cache func(queryString string, req *OnlyStreaming) ([]*OnlyStreaming, error)) {
+	m.StreamCallbacks.Cache = cache
 }
 
 func (m *OnlyStreamingServiceMapServer) Stream(r *OnlyStreaming, stream OnlyStreamingService_StreamServer) error {
 	sqlBuffer := &bytes.Buffer{}
 	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "Stream", r); err != nil {
-		return status.Error(codes.InvalidArgument, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.StreamCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.StreamCallbacks.Cache != nil {
+		if responses, err := m.StreamCallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n OnlyStreaming request: %s \n,query: %s \n error: %s", r, rawSql, err)
-		return status.Error(codes.InvalidArgument, "request generated malformed query")
+		return status.Error(codes.Internal, err.Error())
 	} else {
 		defer rows.Close()
 	}
 	if m.StreamMapper == nil {
 		m.mapperGenMux.Lock()
-		m.StreamMapper, err = mapper.New(rows, &OnlyStreaming{})
+		m.StreamMapper, err = mapper.New("Stream", rows, &OnlyStreaming{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating StreamMapper: %s", err)
@@ -72,10 +117,20 @@ func (m *OnlyStreamingServiceMapServer) Stream(r *OnlyStreaming, stream OnlyStre
 		m.StreamMapper.Error = nil
 		return status.Error(codes.Internal, "error mappig OnlyStreaming")
 	}
-	m.StreamMapper.Log()
+	var responses []*OnlyStreaming
 	for _, resp := range respMap.Responses {
-		if err := stream.Send(resp.(*OnlyStreaming)); err != nil {
-			return err
+		responses = append(responses, resp.(*OnlyStreaming))
+	}
+	for _, callback := range m.StreamCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.StreamMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
 		}
 	}
 	return nil

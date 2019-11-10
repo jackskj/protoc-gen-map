@@ -35,16 +35,45 @@ var _ = math.Inf
 // 3. Begin serving
 
 type InitServiceMapServer struct {
-	DB                  *sql.DB
-	InitDBMapper        *mapper.Mapper
-	InsertAuthorMapper  *mapper.Mapper
-	InsertBlogMapper    *mapper.Mapper
-	InsertCommentMapper *mapper.Mapper
-	InsertPostMapper    *mapper.Mapper
-	InsertPostTagMapper *mapper.Mapper
-	InsertTagMapper     *mapper.Mapper
-
+	DB           *sql.DB
 	mapperGenMux sync.Mutex
+
+	InitDBMapper           *mapper.Mapper
+	InitDBCallbacks        InitServiceInitDBCallbacks
+	InsertAuthorMapper     *mapper.Mapper
+	InsertAuthorCallbacks  InitServiceInsertAuthorCallbacks
+	InsertBlogMapper       *mapper.Mapper
+	InsertBlogCallbacks    InitServiceInsertBlogCallbacks
+	InsertCommentMapper    *mapper.Mapper
+	InsertCommentCallbacks InitServiceInsertCommentCallbacks
+	InsertPostMapper       *mapper.Mapper
+	InsertPostCallbacks    InitServiceInsertPostCallbacks
+	InsertPostTagMapper    *mapper.Mapper
+	InsertPostTagCallbacks InitServiceInsertPostTagCallbacks
+	InsertTagMapper        *mapper.Mapper
+	InsertTagCallbacks     InitServiceInsertTagCallbacks
+}
+
+type InitServiceInitDBCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*EmptyResponse, error)
+}
+
+func (m *InitServiceMapServer) RegisterInitDBBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.InitDBCallbacks.BeforeQueryCallback = append(m.InitDBCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInitDBAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.InitDBCallbacks.AfterQueryCallback = append(m.InitDBCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInitDBCache(cache func(queryString string, req *EmptyRequest) (*EmptyResponse, error)) {
+	m.InitDBCallbacks.Cache = cache
 }
 
 func (m *InitServiceMapServer) InitDB(ctx context.Context, r *EmptyRequest) (*EmptyResponse, error) {
@@ -53,15 +82,59 @@ func (m *InitServiceMapServer) InitDB(ctx context.Context, r *EmptyRequest) (*Em
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InitDBCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InitDBCallbacks.Cache != nil {
+		if resp, err := m.InitDBCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.InitDBCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := EmptyResponse{}
 	return &resp, nil
 
+}
+
+type InitServiceInsertAuthorCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *InsertAuthorRequest) error
+	AfterQueryCallback  []func(queryString string, req *InsertAuthorRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *InsertAuthorRequest) (*EmptyResponse, error)
+}
+
+func (m *InitServiceMapServer) RegisterInsertAuthorBeforeQueryCallback(callbacks ...func(queryString string, req *InsertAuthorRequest) error) {
+	for _, callback := range callbacks {
+		m.InsertAuthorCallbacks.BeforeQueryCallback = append(m.InsertAuthorCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertAuthorAfterQueryCallback(callbacks ...func(queryString string, req *InsertAuthorRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.InsertAuthorCallbacks.AfterQueryCallback = append(m.InsertAuthorCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertAuthorCache(cache func(queryString string, req *InsertAuthorRequest) (*EmptyResponse, error)) {
+	m.InsertAuthorCallbacks.Cache = cache
 }
 
 func (m *InitServiceMapServer) InsertAuthor(ctx context.Context, r *InsertAuthorRequest) (*EmptyResponse, error) {
@@ -70,15 +143,59 @@ func (m *InitServiceMapServer) InsertAuthor(ctx context.Context, r *InsertAuthor
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InsertAuthorCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InsertAuthorCallbacks.Cache != nil {
+		if resp, err := m.InsertAuthorCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n InsertAuthorRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.InsertAuthorCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := EmptyResponse{}
 	return &resp, nil
 
+}
+
+type InitServiceInsertBlogCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *InsertBlogRequest) error
+	AfterQueryCallback  []func(queryString string, req *InsertBlogRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *InsertBlogRequest) (*EmptyResponse, error)
+}
+
+func (m *InitServiceMapServer) RegisterInsertBlogBeforeQueryCallback(callbacks ...func(queryString string, req *InsertBlogRequest) error) {
+	for _, callback := range callbacks {
+		m.InsertBlogCallbacks.BeforeQueryCallback = append(m.InsertBlogCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertBlogAfterQueryCallback(callbacks ...func(queryString string, req *InsertBlogRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.InsertBlogCallbacks.AfterQueryCallback = append(m.InsertBlogCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertBlogCache(cache func(queryString string, req *InsertBlogRequest) (*EmptyResponse, error)) {
+	m.InsertBlogCallbacks.Cache = cache
 }
 
 func (m *InitServiceMapServer) InsertBlog(ctx context.Context, r *InsertBlogRequest) (*EmptyResponse, error) {
@@ -87,15 +204,59 @@ func (m *InitServiceMapServer) InsertBlog(ctx context.Context, r *InsertBlogRequ
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InsertBlogCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InsertBlogCallbacks.Cache != nil {
+		if resp, err := m.InsertBlogCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n InsertBlogRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.InsertBlogCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := EmptyResponse{}
 	return &resp, nil
 
+}
+
+type InitServiceInsertCommentCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *InsertCommentRequest) error
+	AfterQueryCallback  []func(queryString string, req *InsertCommentRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *InsertCommentRequest) (*EmptyResponse, error)
+}
+
+func (m *InitServiceMapServer) RegisterInsertCommentBeforeQueryCallback(callbacks ...func(queryString string, req *InsertCommentRequest) error) {
+	for _, callback := range callbacks {
+		m.InsertCommentCallbacks.BeforeQueryCallback = append(m.InsertCommentCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertCommentAfterQueryCallback(callbacks ...func(queryString string, req *InsertCommentRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.InsertCommentCallbacks.AfterQueryCallback = append(m.InsertCommentCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertCommentCache(cache func(queryString string, req *InsertCommentRequest) (*EmptyResponse, error)) {
+	m.InsertCommentCallbacks.Cache = cache
 }
 
 func (m *InitServiceMapServer) InsertComment(ctx context.Context, r *InsertCommentRequest) (*EmptyResponse, error) {
@@ -104,15 +265,59 @@ func (m *InitServiceMapServer) InsertComment(ctx context.Context, r *InsertComme
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InsertCommentCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InsertCommentCallbacks.Cache != nil {
+		if resp, err := m.InsertCommentCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n InsertCommentRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.InsertCommentCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := EmptyResponse{}
 	return &resp, nil
 
+}
+
+type InitServiceInsertPostCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *InsertPostRequest) error
+	AfterQueryCallback  []func(queryString string, req *InsertPostRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *InsertPostRequest) (*EmptyResponse, error)
+}
+
+func (m *InitServiceMapServer) RegisterInsertPostBeforeQueryCallback(callbacks ...func(queryString string, req *InsertPostRequest) error) {
+	for _, callback := range callbacks {
+		m.InsertPostCallbacks.BeforeQueryCallback = append(m.InsertPostCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertPostAfterQueryCallback(callbacks ...func(queryString string, req *InsertPostRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.InsertPostCallbacks.AfterQueryCallback = append(m.InsertPostCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertPostCache(cache func(queryString string, req *InsertPostRequest) (*EmptyResponse, error)) {
+	m.InsertPostCallbacks.Cache = cache
 }
 
 func (m *InitServiceMapServer) InsertPost(ctx context.Context, r *InsertPostRequest) (*EmptyResponse, error) {
@@ -121,15 +326,59 @@ func (m *InitServiceMapServer) InsertPost(ctx context.Context, r *InsertPostRequ
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InsertPostCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InsertPostCallbacks.Cache != nil {
+		if resp, err := m.InsertPostCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n InsertPostRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.InsertPostCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := EmptyResponse{}
 	return &resp, nil
 
+}
+
+type InitServiceInsertPostTagCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *InsertPostTagRequest) error
+	AfterQueryCallback  []func(queryString string, req *InsertPostTagRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *InsertPostTagRequest) (*EmptyResponse, error)
+}
+
+func (m *InitServiceMapServer) RegisterInsertPostTagBeforeQueryCallback(callbacks ...func(queryString string, req *InsertPostTagRequest) error) {
+	for _, callback := range callbacks {
+		m.InsertPostTagCallbacks.BeforeQueryCallback = append(m.InsertPostTagCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertPostTagAfterQueryCallback(callbacks ...func(queryString string, req *InsertPostTagRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.InsertPostTagCallbacks.AfterQueryCallback = append(m.InsertPostTagCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertPostTagCache(cache func(queryString string, req *InsertPostTagRequest) (*EmptyResponse, error)) {
+	m.InsertPostTagCallbacks.Cache = cache
 }
 
 func (m *InitServiceMapServer) InsertPostTag(ctx context.Context, r *InsertPostTagRequest) (*EmptyResponse, error) {
@@ -138,15 +387,59 @@ func (m *InitServiceMapServer) InsertPostTag(ctx context.Context, r *InsertPostT
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InsertPostTagCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InsertPostTagCallbacks.Cache != nil {
+		if resp, err := m.InsertPostTagCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n InsertPostTagRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.InsertPostTagCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := EmptyResponse{}
 	return &resp, nil
 
+}
+
+type InitServiceInsertTagCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *InsertTagRequest) error
+	AfterQueryCallback  []func(queryString string, req *InsertTagRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *InsertTagRequest) (*EmptyResponse, error)
+}
+
+func (m *InitServiceMapServer) RegisterInsertTagBeforeQueryCallback(callbacks ...func(queryString string, req *InsertTagRequest) error) {
+	for _, callback := range callbacks {
+		m.InsertTagCallbacks.BeforeQueryCallback = append(m.InsertTagCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertTagAfterQueryCallback(callbacks ...func(queryString string, req *InsertTagRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.InsertTagCallbacks.AfterQueryCallback = append(m.InsertTagCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *InitServiceMapServer) RegisterInsertTagCache(cache func(queryString string, req *InsertTagRequest) (*EmptyResponse, error)) {
+	m.InsertTagCallbacks.Cache = cache
 }
 
 func (m *InitServiceMapServer) InsertTag(ctx context.Context, r *InsertTagRequest) (*EmptyResponse, error) {
@@ -155,11 +448,33 @@ func (m *InitServiceMapServer) InsertTag(ctx context.Context, r *InsertTagReques
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InsertTagCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InsertTagCallbacks.Cache != nil {
+		if resp, err := m.InsertTagCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n InsertTagRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	for _, callback := range m.InsertTagCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 	resp := EmptyResponse{}
 	return &resp, nil

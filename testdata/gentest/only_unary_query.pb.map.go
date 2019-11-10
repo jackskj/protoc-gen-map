@@ -31,10 +31,33 @@ var _ = math.Inf
 // 3. Begin serving
 
 type OnlyQuryServiceMapServer struct {
-	DB          *sql.DB
-	QueryMapper *mapper.Mapper
-
+	DB           *sql.DB
 	mapperGenMux sync.Mutex
+
+	QueryMapper    *mapper.Mapper
+	QueryCallbacks OnlyQuryServiceQueryCallbacks
+}
+
+type OnlyQuryServiceQueryCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *OnlyQury) error
+	AfterQueryCallback  []func(queryString string, req *OnlyQury, resp *OnlyQury) error
+	Cache               func(queryString string, req *OnlyQury) (*OnlyQury, error)
+}
+
+func (m *OnlyQuryServiceMapServer) RegisterQueryBeforeQueryCallback(callbacks ...func(queryString string, req *OnlyQury) error) {
+	for _, callback := range callbacks {
+		m.QueryCallbacks.BeforeQueryCallback = append(m.QueryCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *OnlyQuryServiceMapServer) RegisterQueryAfterQueryCallback(callbacks ...func(queryString string, req *OnlyQury, resp *OnlyQury) error) {
+	for _, callback := range callbacks {
+		m.QueryCallbacks.AfterQueryCallback = append(m.QueryCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *OnlyQuryServiceMapServer) RegisterQueryCache(cache func(queryString string, req *OnlyQury) (*OnlyQury, error)) {
+	m.QueryCallbacks.Cache = cache
 }
 
 func (m *OnlyQuryServiceMapServer) Query(ctx context.Context, r *OnlyQury) (*OnlyQury, error) {
@@ -43,6 +66,22 @@ func (m *OnlyQuryServiceMapServer) Query(ctx context.Context, r *OnlyQury) (*Onl
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.QueryCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.QueryCallbacks.Cache != nil {
+		if resp, err := m.QueryCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -53,7 +92,7 @@ func (m *OnlyQuryServiceMapServer) Query(ctx context.Context, r *OnlyQury) (*Onl
 	}
 	if m.QueryMapper == nil {
 		m.mapperGenMux.Lock()
-		m.QueryMapper, err = mapper.New(rows, &OnlyQury{})
+		m.QueryMapper, err = mapper.New("Query", rows, &OnlyQury{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating QueryMapper: %s", err)
@@ -71,12 +110,20 @@ func (m *OnlyQuryServiceMapServer) Query(ctx context.Context, r *OnlyQury) (*Onl
 		m.QueryMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig OnlyQury")
 	}
-	m.QueryMapper.Log()
+	var response *OnlyQury
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(OnlyQury), nil
+		response = &OnlyQury{}
 	} else {
-		return respMap.Responses[0].(*OnlyQury), nil
+		response = respMap.Responses[0].(*OnlyQury)
 	}
+	for _, callback := range m.QueryCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.QueryMapper.Log()
+	return response, nil
 
 }

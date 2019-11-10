@@ -19,6 +19,7 @@ service TestMappingService {
   rpc ExecAsQuery             ( EmptyRequest) returns ( SampleResponse ) {}
   rpc UnclaimedColumns        ( EmptyRequest) returns ( AuthorUserNameResponse) {}
   rpc MultipleRespForUnary    ( EmptyRequest) returns ( examples.Author ) {}
+  rpc NoRespForUnary          ( EmptyRequest) returns ( examples.Author ) {}
   rpc RepeatedPrimative       ( EmptyRequest) returns ( RepeatedPrimativeResponse) {}
   rpc RepeatedEmpty           ( EmptyRequest) returns ( RepeatedEmptyResponse) {}
   rpc EmptyNestedField        ( EmptyRequest) returns ( NestedFieldResponse) {}
@@ -29,6 +30,23 @@ service TestMappingService {
   rpc NullResoultsForSubmaps  ( EmptyRequest) returns ( stream examples.Post ) {}
   rpc SimpleEnum              ( EmptyRequest) returns ( examples.Author ) {}
   rpc NestedEnum              ( EmptyRequest) returns ( NestedEnumResponse ) {}
+
+  //callbacks
+  //Before Query
+  rpc BlogB   ( EmptyRequest ) returns ( examples.BlogResponse) {}
+  rpc BlogsB  ( EmptyRequest ) returns ( stream examples.BlogResponse) {}
+  rpc BlogBF  ( EmptyRequest ) returns ( examples.BlogResponse) {} // Failed
+  rpc BlogsBF ( EmptyRequest ) returns ( stream examples.BlogResponse) {}
+  //Before After Query
+  rpc BlogA   ( EmptyRequest ) returns ( examples.BlogResponse) {}
+  rpc BlogsA  ( EmptyRequest ) returns ( stream examples.BlogResponse) {}
+  rpc BlogAF  ( EmptyRequest ) returns ( examples.BlogResponse) {} // Failed
+  rpc BlogsAF ( EmptyRequest ) returns ( stream examples.BlogResponse) {}
+  //Cache
+  rpc BlogC   ( EmptyRequest ) returns ( examples.BlogResponse) {}
+  rpc BlogsC  ( EmptyRequest ) returns ( stream examples.BlogResponse) {}
+  rpc BlogCF  ( EmptyRequest ) returns ( examples.BlogResponse) {} // Failed
+  rpc BlogsCF ( EmptyRequest ) returns ( stream examples.BlogResponse) {}
 }
 
 message TypeCastingResponse{   // GOTYPE
@@ -119,14 +137,14 @@ message CollectionInAssociationResponse {
 }
 
 message OnePost {
-  string id = 1;
+  uint32 id = 1;
   repeated examples.Comment comment = 2;
 }
 
 message NestedEnumResponse {
-  string id =1;
+  uint32 id = 1;
   message NestedMsg {
-    string nested_id =1;
+    uint32 nested_id = 1;
     enum NestedEnum {
       span = 0;
       egg = 1;

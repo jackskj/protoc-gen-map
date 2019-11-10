@@ -48,11 +48,35 @@ func init() {
 }
 
 type TestReflectServiceMapServer struct {
-	DB                   *sql.DB
-	IncorrectTypesMapper *mapper.Mapper
-	TypeCastingMapper    *mapper.Mapper
-
+	DB           *sql.DB
 	mapperGenMux sync.Mutex
+
+	IncorrectTypesMapper    *mapper.Mapper
+	IncorrectTypesCallbacks TestReflectServiceIncorrectTypesCallbacks
+	TypeCastingMapper       *mapper.Mapper
+	TypeCastingCallbacks    TestReflectServiceTypeCastingCallbacks
+}
+
+type TestReflectServiceTypeCastingCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *TypeCastingResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*TypeCastingResponse, error)
+}
+
+func (m *TestReflectServiceMapServer) RegisterTypeCastingBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.TypeCastingCallbacks.BeforeQueryCallback = append(m.TypeCastingCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestReflectServiceMapServer) RegisterTypeCastingAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *TypeCastingResponse) error) {
+	for _, callback := range callbacks {
+		m.TypeCastingCallbacks.AfterQueryCallback = append(m.TypeCastingCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestReflectServiceMapServer) RegisterTypeCastingCache(cache func(queryString string, req *EmptyRequest) (*TypeCastingResponse, error)) {
+	m.TypeCastingCallbacks.Cache = cache
 }
 
 func (m *TestReflectServiceMapServer) TypeCasting(ctx context.Context, r *EmptyRequest) (*TypeCastingResponse, error) {
@@ -61,6 +85,22 @@ func (m *TestReflectServiceMapServer) TypeCasting(ctx context.Context, r *EmptyR
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.TypeCastingCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.TypeCastingCallbacks.Cache != nil {
+		if resp, err := m.TypeCastingCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -71,7 +111,7 @@ func (m *TestReflectServiceMapServer) TypeCasting(ctx context.Context, r *EmptyR
 	}
 	if m.TypeCastingMapper == nil {
 		m.mapperGenMux.Lock()
-		m.TypeCastingMapper, err = mapper.New(rows, &TypeCastingResponse{})
+		m.TypeCastingMapper, err = mapper.New("TypeCasting", rows, &TypeCastingResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating TypeCastingMapper: %s", err)
@@ -89,14 +129,44 @@ func (m *TestReflectServiceMapServer) TypeCasting(ctx context.Context, r *EmptyR
 		m.TypeCastingMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig TypeCastingResponse")
 	}
-	m.TypeCastingMapper.Log()
+	var response *TypeCastingResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(TypeCastingResponse), nil
+		response = &TypeCastingResponse{}
 	} else {
-		return respMap.Responses[0].(*TypeCastingResponse), nil
+		response = respMap.Responses[0].(*TypeCastingResponse)
 	}
+	for _, callback := range m.TypeCastingCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.TypeCastingMapper.Log()
+	return response, nil
 
+}
+
+type TestReflectServiceIncorrectTypesCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *TypeRequest) error
+	AfterQueryCallback  []func(queryString string, req *TypeRequest, resp *GoTypesResponse) error
+	Cache               func(queryString string, req *TypeRequest) (*GoTypesResponse, error)
+}
+
+func (m *TestReflectServiceMapServer) RegisterIncorrectTypesBeforeQueryCallback(callbacks ...func(queryString string, req *TypeRequest) error) {
+	for _, callback := range callbacks {
+		m.IncorrectTypesCallbacks.BeforeQueryCallback = append(m.IncorrectTypesCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestReflectServiceMapServer) RegisterIncorrectTypesAfterQueryCallback(callbacks ...func(queryString string, req *TypeRequest, resp *GoTypesResponse) error) {
+	for _, callback := range callbacks {
+		m.IncorrectTypesCallbacks.AfterQueryCallback = append(m.IncorrectTypesCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestReflectServiceMapServer) RegisterIncorrectTypesCache(cache func(queryString string, req *TypeRequest) (*GoTypesResponse, error)) {
+	m.IncorrectTypesCallbacks.Cache = cache
 }
 
 func (m *TestReflectServiceMapServer) IncorrectTypes(ctx context.Context, r *TypeRequest) (*GoTypesResponse, error) {
@@ -105,6 +175,22 @@ func (m *TestReflectServiceMapServer) IncorrectTypes(ctx context.Context, r *Typ
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.IncorrectTypesCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.IncorrectTypesCallbacks.Cache != nil {
+		if resp, err := m.IncorrectTypesCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -115,7 +201,7 @@ func (m *TestReflectServiceMapServer) IncorrectTypes(ctx context.Context, r *Typ
 	}
 	if m.IncorrectTypesMapper == nil {
 		m.mapperGenMux.Lock()
-		m.IncorrectTypesMapper, err = mapper.New(rows, &GoTypesResponse{})
+		m.IncorrectTypesMapper, err = mapper.New("IncorrectTypes", rows, &GoTypesResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating IncorrectTypesMapper: %s", err)
@@ -133,36 +219,108 @@ func (m *TestReflectServiceMapServer) IncorrectTypes(ctx context.Context, r *Typ
 		m.IncorrectTypesMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig GoTypesResponse")
 	}
-	m.IncorrectTypesMapper.Log()
+	var response *GoTypesResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(GoTypesResponse), nil
+		response = &GoTypesResponse{}
 	} else {
-		return respMap.Responses[0].(*GoTypesResponse), nil
+		response = respMap.Responses[0].(*GoTypesResponse)
 	}
+	for _, callback := range m.IncorrectTypesCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.IncorrectTypesMapper.Log()
+	return response, nil
 
 }
 
 type TestMappingServiceMapServer struct {
-	DB                            *sql.DB
-	AssociationInCollectionMapper *mapper.Mapper
-	CollectionInAssociationMapper *mapper.Mapper
-	EmptyNestedFieldMapper        *mapper.Mapper
-	EmptyQueryMapper              *mapper.Mapper
-	ExecAsQueryMapper             *mapper.Mapper
-	InsertQueryAsExecMapper       *mapper.Mapper
-	MultipleRespForUnaryMapper    *mapper.Mapper
-	NestedEnumMapper              *mapper.Mapper
-	NoMatchingColumnsMapper       *mapper.Mapper
-	NullResoultsForSubmapsMapper  *mapper.Mapper
-	RepeatedAssociationsMapper    *mapper.Mapper
-	RepeatedEmptyMapper           *mapper.Mapper
-	RepeatedPrimativeMapper       *mapper.Mapper
-	RepeatedTimestampMapper       *mapper.Mapper
-	SimpleEnumMapper              *mapper.Mapper
-	UnclaimedColumnsMapper        *mapper.Mapper
-
+	DB           *sql.DB
 	mapperGenMux sync.Mutex
+
+	AssociationInCollectionMapper    *mapper.Mapper
+	AssociationInCollectionCallbacks TestMappingServiceAssociationInCollectionCallbacks
+	BlogAMapper                      *mapper.Mapper
+	BlogACallbacks                   TestMappingServiceBlogACallbacks
+	BlogAFMapper                     *mapper.Mapper
+	BlogAFCallbacks                  TestMappingServiceBlogAFCallbacks
+	BlogBMapper                      *mapper.Mapper
+	BlogBCallbacks                   TestMappingServiceBlogBCallbacks
+	BlogBFMapper                     *mapper.Mapper
+	BlogBFCallbacks                  TestMappingServiceBlogBFCallbacks
+	BlogCMapper                      *mapper.Mapper
+	BlogCCallbacks                   TestMappingServiceBlogCCallbacks
+	BlogCFMapper                     *mapper.Mapper
+	BlogCFCallbacks                  TestMappingServiceBlogCFCallbacks
+	BlogsAMapper                     *mapper.Mapper
+	BlogsACallbacks                  TestMappingServiceBlogsACallbacks
+	BlogsAFMapper                    *mapper.Mapper
+	BlogsAFCallbacks                 TestMappingServiceBlogsAFCallbacks
+	BlogsBMapper                     *mapper.Mapper
+	BlogsBCallbacks                  TestMappingServiceBlogsBCallbacks
+	BlogsBFMapper                    *mapper.Mapper
+	BlogsBFCallbacks                 TestMappingServiceBlogsBFCallbacks
+	BlogsCMapper                     *mapper.Mapper
+	BlogsCCallbacks                  TestMappingServiceBlogsCCallbacks
+	BlogsCFMapper                    *mapper.Mapper
+	BlogsCFCallbacks                 TestMappingServiceBlogsCFCallbacks
+	CollectionInAssociationMapper    *mapper.Mapper
+	CollectionInAssociationCallbacks TestMappingServiceCollectionInAssociationCallbacks
+	EmptyNestedFieldMapper           *mapper.Mapper
+	EmptyNestedFieldCallbacks        TestMappingServiceEmptyNestedFieldCallbacks
+	EmptyQueryMapper                 *mapper.Mapper
+	EmptyQueryCallbacks              TestMappingServiceEmptyQueryCallbacks
+	ExecAsQueryMapper                *mapper.Mapper
+	ExecAsQueryCallbacks             TestMappingServiceExecAsQueryCallbacks
+	InsertQueryAsExecMapper          *mapper.Mapper
+	InsertQueryAsExecCallbacks       TestMappingServiceInsertQueryAsExecCallbacks
+	MultipleRespForUnaryMapper       *mapper.Mapper
+	MultipleRespForUnaryCallbacks    TestMappingServiceMultipleRespForUnaryCallbacks
+	NestedEnumMapper                 *mapper.Mapper
+	NestedEnumCallbacks              TestMappingServiceNestedEnumCallbacks
+	NoMatchingColumnsMapper          *mapper.Mapper
+	NoMatchingColumnsCallbacks       TestMappingServiceNoMatchingColumnsCallbacks
+	NoRespForUnaryMapper             *mapper.Mapper
+	NoRespForUnaryCallbacks          TestMappingServiceNoRespForUnaryCallbacks
+	NullResoultsForSubmapsMapper     *mapper.Mapper
+	NullResoultsForSubmapsCallbacks  TestMappingServiceNullResoultsForSubmapsCallbacks
+	RepeatedAssociationsMapper       *mapper.Mapper
+	RepeatedAssociationsCallbacks    TestMappingServiceRepeatedAssociationsCallbacks
+	RepeatedEmptyMapper              *mapper.Mapper
+	RepeatedEmptyCallbacks           TestMappingServiceRepeatedEmptyCallbacks
+	RepeatedPrimativeMapper          *mapper.Mapper
+	RepeatedPrimativeCallbacks       TestMappingServiceRepeatedPrimativeCallbacks
+	RepeatedTimestampMapper          *mapper.Mapper
+	RepeatedTimestampCallbacks       TestMappingServiceRepeatedTimestampCallbacks
+	SimpleEnumMapper                 *mapper.Mapper
+	SimpleEnumCallbacks              TestMappingServiceSimpleEnumCallbacks
+	UnclaimedColumnsMapper           *mapper.Mapper
+	UnclaimedColumnsCallbacks        TestMappingServiceUnclaimedColumnsCallbacks
+}
+
+type TestMappingServiceRepeatedAssociationsCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *RepeatedAssociationsResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*RepeatedAssociationsResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedAssociationsBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.RepeatedAssociationsCallbacks.BeforeQueryCallback = append(m.RepeatedAssociationsCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedAssociationsAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *RepeatedAssociationsResponse) error) {
+	for _, callback := range callbacks {
+		m.RepeatedAssociationsCallbacks.AfterQueryCallback = append(m.RepeatedAssociationsCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedAssociationsCache(cache func(queryString string, req *EmptyRequest) (*RepeatedAssociationsResponse, error)) {
+	m.RepeatedAssociationsCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) RepeatedAssociations(ctx context.Context, r *EmptyRequest) (*RepeatedAssociationsResponse, error) {
@@ -171,6 +329,22 @@ func (m *TestMappingServiceMapServer) RepeatedAssociations(ctx context.Context, 
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.RepeatedAssociationsCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.RepeatedAssociationsCallbacks.Cache != nil {
+		if resp, err := m.RepeatedAssociationsCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -181,7 +355,7 @@ func (m *TestMappingServiceMapServer) RepeatedAssociations(ctx context.Context, 
 	}
 	if m.RepeatedAssociationsMapper == nil {
 		m.mapperGenMux.Lock()
-		m.RepeatedAssociationsMapper, err = mapper.New(rows, &RepeatedAssociationsResponse{})
+		m.RepeatedAssociationsMapper, err = mapper.New("RepeatedAssociations", rows, &RepeatedAssociationsResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating RepeatedAssociationsMapper: %s", err)
@@ -199,14 +373,44 @@ func (m *TestMappingServiceMapServer) RepeatedAssociations(ctx context.Context, 
 		m.RepeatedAssociationsMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig RepeatedAssociationsResponse")
 	}
-	m.RepeatedAssociationsMapper.Log()
+	var response *RepeatedAssociationsResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(RepeatedAssociationsResponse), nil
+		response = &RepeatedAssociationsResponse{}
 	} else {
-		return respMap.Responses[0].(*RepeatedAssociationsResponse), nil
+		response = respMap.Responses[0].(*RepeatedAssociationsResponse)
 	}
+	for _, callback := range m.RepeatedAssociationsCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.RepeatedAssociationsMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceEmptyQueryCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *SampleResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*SampleResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterEmptyQueryBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.EmptyQueryCallbacks.BeforeQueryCallback = append(m.EmptyQueryCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterEmptyQueryAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *SampleResponse) error) {
+	for _, callback := range callbacks {
+		m.EmptyQueryCallbacks.AfterQueryCallback = append(m.EmptyQueryCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterEmptyQueryCache(cache func(queryString string, req *EmptyRequest) (*SampleResponse, error)) {
+	m.EmptyQueryCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) EmptyQuery(ctx context.Context, r *EmptyRequest) (*SampleResponse, error) {
@@ -215,6 +419,22 @@ func (m *TestMappingServiceMapServer) EmptyQuery(ctx context.Context, r *EmptyRe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.EmptyQueryCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.EmptyQueryCallbacks.Cache != nil {
+		if resp, err := m.EmptyQueryCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -225,7 +445,7 @@ func (m *TestMappingServiceMapServer) EmptyQuery(ctx context.Context, r *EmptyRe
 	}
 	if m.EmptyQueryMapper == nil {
 		m.mapperGenMux.Lock()
-		m.EmptyQueryMapper, err = mapper.New(rows, &SampleResponse{})
+		m.EmptyQueryMapper, err = mapper.New("EmptyQuery", rows, &SampleResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating EmptyQueryMapper: %s", err)
@@ -243,14 +463,44 @@ func (m *TestMappingServiceMapServer) EmptyQuery(ctx context.Context, r *EmptyRe
 		m.EmptyQueryMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig SampleResponse")
 	}
-	m.EmptyQueryMapper.Log()
+	var response *SampleResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(SampleResponse), nil
+		response = &SampleResponse{}
 	} else {
-		return respMap.Responses[0].(*SampleResponse), nil
+		response = respMap.Responses[0].(*SampleResponse)
 	}
+	for _, callback := range m.EmptyQueryCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.EmptyQueryMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceInsertQueryAsExecCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.Author) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.Author, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterInsertQueryAsExecBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.InsertQueryAsExecCallbacks.BeforeQueryCallback = append(m.InsertQueryAsExecCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterInsertQueryAsExecAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.Author) error) {
+	for _, callback := range callbacks {
+		m.InsertQueryAsExecCallbacks.AfterQueryCallback = append(m.InsertQueryAsExecCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterInsertQueryAsExecCache(cache func(queryString string, req *EmptyRequest) (*examples.Author, error)) {
+	m.InsertQueryAsExecCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) InsertQueryAsExec(ctx context.Context, r *EmptyRequest) (*examples.Author, error) {
@@ -259,15 +509,59 @@ func (m *TestMappingServiceMapServer) InsertQueryAsExec(ctx context.Context, r *
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InsertQueryAsExecCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InsertQueryAsExecCallbacks.Cache != nil {
+		if resp, err := m.InsertQueryAsExecCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
+	for _, callback := range m.InsertQueryAsExecCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 	resp := examples.Author{}
 	return &resp, nil
 
+}
+
+type TestMappingServiceExecAsQueryCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *SampleResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*SampleResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterExecAsQueryBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.ExecAsQueryCallbacks.BeforeQueryCallback = append(m.ExecAsQueryCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterExecAsQueryAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *SampleResponse) error) {
+	for _, callback := range callbacks {
+		m.ExecAsQueryCallbacks.AfterQueryCallback = append(m.ExecAsQueryCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterExecAsQueryCache(cache func(queryString string, req *EmptyRequest) (*SampleResponse, error)) {
+	m.ExecAsQueryCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) ExecAsQuery(ctx context.Context, r *EmptyRequest) (*SampleResponse, error) {
@@ -276,6 +570,22 @@ func (m *TestMappingServiceMapServer) ExecAsQuery(ctx context.Context, r *EmptyR
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.ExecAsQueryCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.ExecAsQueryCallbacks.Cache != nil {
+		if resp, err := m.ExecAsQueryCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -286,7 +596,7 @@ func (m *TestMappingServiceMapServer) ExecAsQuery(ctx context.Context, r *EmptyR
 	}
 	if m.ExecAsQueryMapper == nil {
 		m.mapperGenMux.Lock()
-		m.ExecAsQueryMapper, err = mapper.New(rows, &SampleResponse{})
+		m.ExecAsQueryMapper, err = mapper.New("ExecAsQuery", rows, &SampleResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating ExecAsQueryMapper: %s", err)
@@ -304,14 +614,44 @@ func (m *TestMappingServiceMapServer) ExecAsQuery(ctx context.Context, r *EmptyR
 		m.ExecAsQueryMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig SampleResponse")
 	}
-	m.ExecAsQueryMapper.Log()
+	var response *SampleResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(SampleResponse), nil
+		response = &SampleResponse{}
 	} else {
-		return respMap.Responses[0].(*SampleResponse), nil
+		response = respMap.Responses[0].(*SampleResponse)
 	}
+	for _, callback := range m.ExecAsQueryCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.ExecAsQueryMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceUnclaimedColumnsCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *AuthorUserNameResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*AuthorUserNameResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterUnclaimedColumnsBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.UnclaimedColumnsCallbacks.BeforeQueryCallback = append(m.UnclaimedColumnsCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterUnclaimedColumnsAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *AuthorUserNameResponse) error) {
+	for _, callback := range callbacks {
+		m.UnclaimedColumnsCallbacks.AfterQueryCallback = append(m.UnclaimedColumnsCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterUnclaimedColumnsCache(cache func(queryString string, req *EmptyRequest) (*AuthorUserNameResponse, error)) {
+	m.UnclaimedColumnsCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) UnclaimedColumns(ctx context.Context, r *EmptyRequest) (*AuthorUserNameResponse, error) {
@@ -320,6 +660,22 @@ func (m *TestMappingServiceMapServer) UnclaimedColumns(ctx context.Context, r *E
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.UnclaimedColumnsCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.UnclaimedColumnsCallbacks.Cache != nil {
+		if resp, err := m.UnclaimedColumnsCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -330,7 +686,7 @@ func (m *TestMappingServiceMapServer) UnclaimedColumns(ctx context.Context, r *E
 	}
 	if m.UnclaimedColumnsMapper == nil {
 		m.mapperGenMux.Lock()
-		m.UnclaimedColumnsMapper, err = mapper.New(rows, &AuthorUserNameResponse{})
+		m.UnclaimedColumnsMapper, err = mapper.New("UnclaimedColumns", rows, &AuthorUserNameResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating UnclaimedColumnsMapper: %s", err)
@@ -348,14 +704,44 @@ func (m *TestMappingServiceMapServer) UnclaimedColumns(ctx context.Context, r *E
 		m.UnclaimedColumnsMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig AuthorUserNameResponse")
 	}
-	m.UnclaimedColumnsMapper.Log()
+	var response *AuthorUserNameResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(AuthorUserNameResponse), nil
+		response = &AuthorUserNameResponse{}
 	} else {
-		return respMap.Responses[0].(*AuthorUserNameResponse), nil
+		response = respMap.Responses[0].(*AuthorUserNameResponse)
 	}
+	for _, callback := range m.UnclaimedColumnsCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.UnclaimedColumnsMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceMultipleRespForUnaryCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.Author) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.Author, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterMultipleRespForUnaryBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.MultipleRespForUnaryCallbacks.BeforeQueryCallback = append(m.MultipleRespForUnaryCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterMultipleRespForUnaryAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.Author) error) {
+	for _, callback := range callbacks {
+		m.MultipleRespForUnaryCallbacks.AfterQueryCallback = append(m.MultipleRespForUnaryCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterMultipleRespForUnaryCache(cache func(queryString string, req *EmptyRequest) (*examples.Author, error)) {
+	m.MultipleRespForUnaryCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) MultipleRespForUnary(ctx context.Context, r *EmptyRequest) (*examples.Author, error) {
@@ -364,6 +750,22 @@ func (m *TestMappingServiceMapServer) MultipleRespForUnary(ctx context.Context, 
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.MultipleRespForUnaryCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.MultipleRespForUnaryCallbacks.Cache != nil {
+		if resp, err := m.MultipleRespForUnaryCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -374,7 +776,7 @@ func (m *TestMappingServiceMapServer) MultipleRespForUnary(ctx context.Context, 
 	}
 	if m.MultipleRespForUnaryMapper == nil {
 		m.mapperGenMux.Lock()
-		m.MultipleRespForUnaryMapper, err = mapper.New(rows, &examples.Author{})
+		m.MultipleRespForUnaryMapper, err = mapper.New("MultipleRespForUnary", rows, &examples.Author{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating MultipleRespForUnaryMapper: %s", err)
@@ -392,14 +794,134 @@ func (m *TestMappingServiceMapServer) MultipleRespForUnary(ctx context.Context, 
 		m.MultipleRespForUnaryMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig examples.Author")
 	}
-	m.MultipleRespForUnaryMapper.Log()
+	var response *examples.Author
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(examples.Author), nil
+		response = &examples.Author{}
 	} else {
-		return respMap.Responses[0].(*examples.Author), nil
+		response = respMap.Responses[0].(*examples.Author)
+	}
+	for _, callback := range m.MultipleRespForUnaryCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.MultipleRespForUnaryMapper.Log()
+	return response, nil
+
+}
+
+type TestMappingServiceNoRespForUnaryCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.Author) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.Author, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterNoRespForUnaryBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.NoRespForUnaryCallbacks.BeforeQueryCallback = append(m.NoRespForUnaryCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterNoRespForUnaryAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.Author) error) {
+	for _, callback := range callbacks {
+		m.NoRespForUnaryCallbacks.AfterQueryCallback = append(m.NoRespForUnaryCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterNoRespForUnaryCache(cache func(queryString string, req *EmptyRequest) (*examples.Author, error)) {
+	m.NoRespForUnaryCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) NoRespForUnary(ctx context.Context, r *EmptyRequest) (*examples.Author, error) {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "NoRespForUnary", r); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.NoRespForUnaryCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.NoRespForUnaryCallbacks.Cache != nil {
+		if resp, err := m.NoRespForUnaryCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
+	}
+	if m.NoRespForUnaryMapper == nil {
+		m.mapperGenMux.Lock()
+		m.NoRespForUnaryMapper, err = mapper.New("NoRespForUnary", rows, &examples.Author{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating NoRespForUnaryMapper: %s", err)
+			return nil, status.Error(codes.Internal, "error generating examples.Author mapping")
+		}
+		m.NoRespForUnaryMapper.Log()
+	}
+	respMap := m.NoRespForUnaryMapper.NewResponseMapping()
+	if err := m.NoRespForUnaryMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for NoRespForUnary: %s", err)
+		return nil, status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.NoRespForUnaryMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig NoRespForUnaryMapper: %s", err)
+		m.NoRespForUnaryMapper.Error = nil
+		return nil, status.Error(codes.Internal, "error mappig examples.Author")
+	}
+	var response *examples.Author
+	if len(respMap.Responses) == 0 {
+		//No Responses found
+		response = &examples.Author{}
+	} else {
+		response = respMap.Responses[0].(*examples.Author)
+	}
+	for _, callback := range m.NoRespForUnaryCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.NoRespForUnaryMapper.Log()
+	return response, nil
+
+}
+
+type TestMappingServiceRepeatedPrimativeCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *RepeatedPrimativeResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*RepeatedPrimativeResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedPrimativeBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.RepeatedPrimativeCallbacks.BeforeQueryCallback = append(m.RepeatedPrimativeCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedPrimativeAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *RepeatedPrimativeResponse) error) {
+	for _, callback := range callbacks {
+		m.RepeatedPrimativeCallbacks.AfterQueryCallback = append(m.RepeatedPrimativeCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedPrimativeCache(cache func(queryString string, req *EmptyRequest) (*RepeatedPrimativeResponse, error)) {
+	m.RepeatedPrimativeCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) RepeatedPrimative(ctx context.Context, r *EmptyRequest) (*RepeatedPrimativeResponse, error) {
@@ -408,6 +930,22 @@ func (m *TestMappingServiceMapServer) RepeatedPrimative(ctx context.Context, r *
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.RepeatedPrimativeCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.RepeatedPrimativeCallbacks.Cache != nil {
+		if resp, err := m.RepeatedPrimativeCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -418,7 +956,7 @@ func (m *TestMappingServiceMapServer) RepeatedPrimative(ctx context.Context, r *
 	}
 	if m.RepeatedPrimativeMapper == nil {
 		m.mapperGenMux.Lock()
-		m.RepeatedPrimativeMapper, err = mapper.New(rows, &RepeatedPrimativeResponse{})
+		m.RepeatedPrimativeMapper, err = mapper.New("RepeatedPrimative", rows, &RepeatedPrimativeResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating RepeatedPrimativeMapper: %s", err)
@@ -436,14 +974,44 @@ func (m *TestMappingServiceMapServer) RepeatedPrimative(ctx context.Context, r *
 		m.RepeatedPrimativeMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig RepeatedPrimativeResponse")
 	}
-	m.RepeatedPrimativeMapper.Log()
+	var response *RepeatedPrimativeResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(RepeatedPrimativeResponse), nil
+		response = &RepeatedPrimativeResponse{}
 	} else {
-		return respMap.Responses[0].(*RepeatedPrimativeResponse), nil
+		response = respMap.Responses[0].(*RepeatedPrimativeResponse)
 	}
+	for _, callback := range m.RepeatedPrimativeCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.RepeatedPrimativeMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceRepeatedEmptyCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *RepeatedEmptyResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*RepeatedEmptyResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedEmptyBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.RepeatedEmptyCallbacks.BeforeQueryCallback = append(m.RepeatedEmptyCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedEmptyAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *RepeatedEmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.RepeatedEmptyCallbacks.AfterQueryCallback = append(m.RepeatedEmptyCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedEmptyCache(cache func(queryString string, req *EmptyRequest) (*RepeatedEmptyResponse, error)) {
+	m.RepeatedEmptyCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) RepeatedEmpty(ctx context.Context, r *EmptyRequest) (*RepeatedEmptyResponse, error) {
@@ -452,6 +1020,22 @@ func (m *TestMappingServiceMapServer) RepeatedEmpty(ctx context.Context, r *Empt
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.RepeatedEmptyCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.RepeatedEmptyCallbacks.Cache != nil {
+		if resp, err := m.RepeatedEmptyCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -462,7 +1046,7 @@ func (m *TestMappingServiceMapServer) RepeatedEmpty(ctx context.Context, r *Empt
 	}
 	if m.RepeatedEmptyMapper == nil {
 		m.mapperGenMux.Lock()
-		m.RepeatedEmptyMapper, err = mapper.New(rows, &RepeatedEmptyResponse{})
+		m.RepeatedEmptyMapper, err = mapper.New("RepeatedEmpty", rows, &RepeatedEmptyResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating RepeatedEmptyMapper: %s", err)
@@ -480,14 +1064,44 @@ func (m *TestMappingServiceMapServer) RepeatedEmpty(ctx context.Context, r *Empt
 		m.RepeatedEmptyMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig RepeatedEmptyResponse")
 	}
-	m.RepeatedEmptyMapper.Log()
+	var response *RepeatedEmptyResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(RepeatedEmptyResponse), nil
+		response = &RepeatedEmptyResponse{}
 	} else {
-		return respMap.Responses[0].(*RepeatedEmptyResponse), nil
+		response = respMap.Responses[0].(*RepeatedEmptyResponse)
 	}
+	for _, callback := range m.RepeatedEmptyCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.RepeatedEmptyMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceEmptyNestedFieldCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *NestedFieldResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*NestedFieldResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterEmptyNestedFieldBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.EmptyNestedFieldCallbacks.BeforeQueryCallback = append(m.EmptyNestedFieldCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterEmptyNestedFieldAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *NestedFieldResponse) error) {
+	for _, callback := range callbacks {
+		m.EmptyNestedFieldCallbacks.AfterQueryCallback = append(m.EmptyNestedFieldCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterEmptyNestedFieldCache(cache func(queryString string, req *EmptyRequest) (*NestedFieldResponse, error)) {
+	m.EmptyNestedFieldCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) EmptyNestedField(ctx context.Context, r *EmptyRequest) (*NestedFieldResponse, error) {
@@ -496,6 +1110,22 @@ func (m *TestMappingServiceMapServer) EmptyNestedField(ctx context.Context, r *E
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.EmptyNestedFieldCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.EmptyNestedFieldCallbacks.Cache != nil {
+		if resp, err := m.EmptyNestedFieldCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -506,7 +1136,7 @@ func (m *TestMappingServiceMapServer) EmptyNestedField(ctx context.Context, r *E
 	}
 	if m.EmptyNestedFieldMapper == nil {
 		m.mapperGenMux.Lock()
-		m.EmptyNestedFieldMapper, err = mapper.New(rows, &NestedFieldResponse{})
+		m.EmptyNestedFieldMapper, err = mapper.New("EmptyNestedField", rows, &NestedFieldResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating EmptyNestedFieldMapper: %s", err)
@@ -524,14 +1154,44 @@ func (m *TestMappingServiceMapServer) EmptyNestedField(ctx context.Context, r *E
 		m.EmptyNestedFieldMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig NestedFieldResponse")
 	}
-	m.EmptyNestedFieldMapper.Log()
+	var response *NestedFieldResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(NestedFieldResponse), nil
+		response = &NestedFieldResponse{}
 	} else {
-		return respMap.Responses[0].(*NestedFieldResponse), nil
+		response = respMap.Responses[0].(*NestedFieldResponse)
 	}
+	for _, callback := range m.EmptyNestedFieldCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.EmptyNestedFieldMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceNoMatchingColumnsCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.Author) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.Author, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterNoMatchingColumnsBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.NoMatchingColumnsCallbacks.BeforeQueryCallback = append(m.NoMatchingColumnsCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterNoMatchingColumnsAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.Author) error) {
+	for _, callback := range callbacks {
+		m.NoMatchingColumnsCallbacks.AfterQueryCallback = append(m.NoMatchingColumnsCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterNoMatchingColumnsCache(cache func(queryString string, req *EmptyRequest) (*examples.Author, error)) {
+	m.NoMatchingColumnsCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) NoMatchingColumns(ctx context.Context, r *EmptyRequest) (*examples.Author, error) {
@@ -540,6 +1200,22 @@ func (m *TestMappingServiceMapServer) NoMatchingColumns(ctx context.Context, r *
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.NoMatchingColumnsCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.NoMatchingColumnsCallbacks.Cache != nil {
+		if resp, err := m.NoMatchingColumnsCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -550,7 +1226,7 @@ func (m *TestMappingServiceMapServer) NoMatchingColumns(ctx context.Context, r *
 	}
 	if m.NoMatchingColumnsMapper == nil {
 		m.mapperGenMux.Lock()
-		m.NoMatchingColumnsMapper, err = mapper.New(rows, &examples.Author{})
+		m.NoMatchingColumnsMapper, err = mapper.New("NoMatchingColumns", rows, &examples.Author{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating NoMatchingColumnsMapper: %s", err)
@@ -568,14 +1244,44 @@ func (m *TestMappingServiceMapServer) NoMatchingColumns(ctx context.Context, r *
 		m.NoMatchingColumnsMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig examples.Author")
 	}
-	m.NoMatchingColumnsMapper.Log()
+	var response *examples.Author
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(examples.Author), nil
+		response = &examples.Author{}
 	} else {
-		return respMap.Responses[0].(*examples.Author), nil
+		response = respMap.Responses[0].(*examples.Author)
 	}
+	for _, callback := range m.NoMatchingColumnsCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.NoMatchingColumnsMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceAssociationInCollectionCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *AssociationInCollectionResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*AssociationInCollectionResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterAssociationInCollectionBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.AssociationInCollectionCallbacks.BeforeQueryCallback = append(m.AssociationInCollectionCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterAssociationInCollectionAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *AssociationInCollectionResponse) error) {
+	for _, callback := range callbacks {
+		m.AssociationInCollectionCallbacks.AfterQueryCallback = append(m.AssociationInCollectionCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterAssociationInCollectionCache(cache func(queryString string, req *EmptyRequest) (*AssociationInCollectionResponse, error)) {
+	m.AssociationInCollectionCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) AssociationInCollection(ctx context.Context, r *EmptyRequest) (*AssociationInCollectionResponse, error) {
@@ -584,6 +1290,22 @@ func (m *TestMappingServiceMapServer) AssociationInCollection(ctx context.Contex
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.AssociationInCollectionCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.AssociationInCollectionCallbacks.Cache != nil {
+		if resp, err := m.AssociationInCollectionCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -594,7 +1316,7 @@ func (m *TestMappingServiceMapServer) AssociationInCollection(ctx context.Contex
 	}
 	if m.AssociationInCollectionMapper == nil {
 		m.mapperGenMux.Lock()
-		m.AssociationInCollectionMapper, err = mapper.New(rows, &AssociationInCollectionResponse{})
+		m.AssociationInCollectionMapper, err = mapper.New("AssociationInCollection", rows, &AssociationInCollectionResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating AssociationInCollectionMapper: %s", err)
@@ -612,14 +1334,44 @@ func (m *TestMappingServiceMapServer) AssociationInCollection(ctx context.Contex
 		m.AssociationInCollectionMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig AssociationInCollectionResponse")
 	}
-	m.AssociationInCollectionMapper.Log()
+	var response *AssociationInCollectionResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(AssociationInCollectionResponse), nil
+		response = &AssociationInCollectionResponse{}
 	} else {
-		return respMap.Responses[0].(*AssociationInCollectionResponse), nil
+		response = respMap.Responses[0].(*AssociationInCollectionResponse)
 	}
+	for _, callback := range m.AssociationInCollectionCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.AssociationInCollectionMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceCollectionInAssociationCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *CollectionInAssociationResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*CollectionInAssociationResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterCollectionInAssociationBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.CollectionInAssociationCallbacks.BeforeQueryCallback = append(m.CollectionInAssociationCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterCollectionInAssociationAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *CollectionInAssociationResponse) error) {
+	for _, callback := range callbacks {
+		m.CollectionInAssociationCallbacks.AfterQueryCallback = append(m.CollectionInAssociationCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterCollectionInAssociationCache(cache func(queryString string, req *EmptyRequest) (*CollectionInAssociationResponse, error)) {
+	m.CollectionInAssociationCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) CollectionInAssociation(ctx context.Context, r *EmptyRequest) (*CollectionInAssociationResponse, error) {
@@ -628,6 +1380,22 @@ func (m *TestMappingServiceMapServer) CollectionInAssociation(ctx context.Contex
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.CollectionInAssociationCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.CollectionInAssociationCallbacks.Cache != nil {
+		if resp, err := m.CollectionInAssociationCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -638,7 +1406,7 @@ func (m *TestMappingServiceMapServer) CollectionInAssociation(ctx context.Contex
 	}
 	if m.CollectionInAssociationMapper == nil {
 		m.mapperGenMux.Lock()
-		m.CollectionInAssociationMapper, err = mapper.New(rows, &CollectionInAssociationResponse{})
+		m.CollectionInAssociationMapper, err = mapper.New("CollectionInAssociation", rows, &CollectionInAssociationResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating CollectionInAssociationMapper: %s", err)
@@ -656,14 +1424,44 @@ func (m *TestMappingServiceMapServer) CollectionInAssociation(ctx context.Contex
 		m.CollectionInAssociationMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig CollectionInAssociationResponse")
 	}
-	m.CollectionInAssociationMapper.Log()
+	var response *CollectionInAssociationResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(CollectionInAssociationResponse), nil
+		response = &CollectionInAssociationResponse{}
 	} else {
-		return respMap.Responses[0].(*CollectionInAssociationResponse), nil
+		response = respMap.Responses[0].(*CollectionInAssociationResponse)
 	}
+	for _, callback := range m.CollectionInAssociationCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.CollectionInAssociationMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceRepeatedTimestampCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *RepeatedTimestampResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*RepeatedTimestampResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedTimestampBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.RepeatedTimestampCallbacks.BeforeQueryCallback = append(m.RepeatedTimestampCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedTimestampAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *RepeatedTimestampResponse) error) {
+	for _, callback := range callbacks {
+		m.RepeatedTimestampCallbacks.AfterQueryCallback = append(m.RepeatedTimestampCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterRepeatedTimestampCache(cache func(queryString string, req *EmptyRequest) (*RepeatedTimestampResponse, error)) {
+	m.RepeatedTimestampCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) RepeatedTimestamp(ctx context.Context, r *EmptyRequest) (*RepeatedTimestampResponse, error) {
@@ -672,6 +1470,22 @@ func (m *TestMappingServiceMapServer) RepeatedTimestamp(ctx context.Context, r *
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.RepeatedTimestampCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.RepeatedTimestampCallbacks.Cache != nil {
+		if resp, err := m.RepeatedTimestampCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -682,7 +1496,7 @@ func (m *TestMappingServiceMapServer) RepeatedTimestamp(ctx context.Context, r *
 	}
 	if m.RepeatedTimestampMapper == nil {
 		m.mapperGenMux.Lock()
-		m.RepeatedTimestampMapper, err = mapper.New(rows, &RepeatedTimestampResponse{})
+		m.RepeatedTimestampMapper, err = mapper.New("RepeatedTimestamp", rows, &RepeatedTimestampResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating RepeatedTimestampMapper: %s", err)
@@ -700,32 +1514,84 @@ func (m *TestMappingServiceMapServer) RepeatedTimestamp(ctx context.Context, r *
 		m.RepeatedTimestampMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig RepeatedTimestampResponse")
 	}
-	m.RepeatedTimestampMapper.Log()
+	var response *RepeatedTimestampResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(RepeatedTimestampResponse), nil
+		response = &RepeatedTimestampResponse{}
 	} else {
-		return respMap.Responses[0].(*RepeatedTimestampResponse), nil
+		response = respMap.Responses[0].(*RepeatedTimestampResponse)
 	}
+	for _, callback := range m.RepeatedTimestampCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.RepeatedTimestampMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceNullResoultsForSubmapsCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp []*examples.Post) error
+	Cache               func(queryString string, req *EmptyRequest) ([]*examples.Post, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterNullResoultsForSubmapsBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.NullResoultsForSubmapsCallbacks.BeforeQueryCallback = append(m.NullResoultsForSubmapsCallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterNullResoultsForSubmapsAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp []*examples.Post) error) {
+	for _, callback := range callbacks {
+		m.NullResoultsForSubmapsCallbacks.AfterQueryCallback = append(m.NullResoultsForSubmapsCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterNullResoultsForSubmapsCache(cache func(queryString string, req *EmptyRequest) ([]*examples.Post, error)) {
+	m.NullResoultsForSubmapsCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) NullResoultsForSubmaps(r *EmptyRequest, stream TestMappingService_NullResoultsForSubmapsServer) error {
 	sqlBuffer := &bytes.Buffer{}
 	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "NullResoultsForSubmaps", r); err != nil {
-		return status.Error(codes.InvalidArgument, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.NullResoultsForSubmapsCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.NullResoultsForSubmapsCallbacks.Cache != nil {
+		if responses, err := m.NullResoultsForSubmapsCallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
-		return status.Error(codes.InvalidArgument, "request generated malformed query")
+		return status.Error(codes.Internal, err.Error())
 	} else {
 		defer rows.Close()
 	}
 	if m.NullResoultsForSubmapsMapper == nil {
 		m.mapperGenMux.Lock()
-		m.NullResoultsForSubmapsMapper, err = mapper.New(rows, &examples.Post{})
+		m.NullResoultsForSubmapsMapper, err = mapper.New("NullResoultsForSubmaps", rows, &examples.Post{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating NullResoultsForSubmapsMapper: %s", err)
@@ -743,13 +1609,45 @@ func (m *TestMappingServiceMapServer) NullResoultsForSubmaps(r *EmptyRequest, st
 		m.NullResoultsForSubmapsMapper.Error = nil
 		return status.Error(codes.Internal, "error mappig examples.Post")
 	}
-	m.NullResoultsForSubmapsMapper.Log()
+	var responses []*examples.Post
 	for _, resp := range respMap.Responses {
-		if err := stream.Send(resp.(*examples.Post)); err != nil {
-			return err
+		responses = append(responses, resp.(*examples.Post))
+	}
+	for _, callback := range m.NullResoultsForSubmapsCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.NullResoultsForSubmapsMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
 		}
 	}
 	return nil
+}
+
+type TestMappingServiceSimpleEnumCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.Author) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.Author, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterSimpleEnumBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.SimpleEnumCallbacks.BeforeQueryCallback = append(m.SimpleEnumCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterSimpleEnumAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.Author) error) {
+	for _, callback := range callbacks {
+		m.SimpleEnumCallbacks.AfterQueryCallback = append(m.SimpleEnumCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterSimpleEnumCache(cache func(queryString string, req *EmptyRequest) (*examples.Author, error)) {
+	m.SimpleEnumCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) SimpleEnum(ctx context.Context, r *EmptyRequest) (*examples.Author, error) {
@@ -758,6 +1656,22 @@ func (m *TestMappingServiceMapServer) SimpleEnum(ctx context.Context, r *EmptyRe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.SimpleEnumCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.SimpleEnumCallbacks.Cache != nil {
+		if resp, err := m.SimpleEnumCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -768,7 +1682,7 @@ func (m *TestMappingServiceMapServer) SimpleEnum(ctx context.Context, r *EmptyRe
 	}
 	if m.SimpleEnumMapper == nil {
 		m.mapperGenMux.Lock()
-		m.SimpleEnumMapper, err = mapper.New(rows, &examples.Author{})
+		m.SimpleEnumMapper, err = mapper.New("SimpleEnum", rows, &examples.Author{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating SimpleEnumMapper: %s", err)
@@ -786,14 +1700,44 @@ func (m *TestMappingServiceMapServer) SimpleEnum(ctx context.Context, r *EmptyRe
 		m.SimpleEnumMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig examples.Author")
 	}
-	m.SimpleEnumMapper.Log()
+	var response *examples.Author
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(examples.Author), nil
+		response = &examples.Author{}
 	} else {
-		return respMap.Responses[0].(*examples.Author), nil
+		response = respMap.Responses[0].(*examples.Author)
 	}
+	for _, callback := range m.SimpleEnumCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.SimpleEnumMapper.Log()
+	return response, nil
 
+}
+
+type TestMappingServiceNestedEnumCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *NestedEnumResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*NestedEnumResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterNestedEnumBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.NestedEnumCallbacks.BeforeQueryCallback = append(m.NestedEnumCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterNestedEnumAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *NestedEnumResponse) error) {
+	for _, callback := range callbacks {
+		m.NestedEnumCallbacks.AfterQueryCallback = append(m.NestedEnumCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterNestedEnumCache(cache func(queryString string, req *EmptyRequest) (*NestedEnumResponse, error)) {
+	m.NestedEnumCallbacks.Cache = cache
 }
 
 func (m *TestMappingServiceMapServer) NestedEnum(ctx context.Context, r *EmptyRequest) (*NestedEnumResponse, error) {
@@ -802,6 +1746,22 @@ func (m *TestMappingServiceMapServer) NestedEnum(ctx context.Context, r *EmptyRe
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.NestedEnumCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.NestedEnumCallbacks.Cache != nil {
+		if resp, err := m.NestedEnumCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -812,7 +1772,7 @@ func (m *TestMappingServiceMapServer) NestedEnum(ctx context.Context, r *EmptyRe
 	}
 	if m.NestedEnumMapper == nil {
 		m.mapperGenMux.Lock()
-		m.NestedEnumMapper, err = mapper.New(rows, &NestedEnumResponse{})
+		m.NestedEnumMapper, err = mapper.New("NestedEnum", rows, &NestedEnumResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating NestedEnumMapper: %s", err)
@@ -830,14 +1790,1138 @@ func (m *TestMappingServiceMapServer) NestedEnum(ctx context.Context, r *EmptyRe
 		m.NestedEnumMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig NestedEnumResponse")
 	}
-	m.NestedEnumMapper.Log()
+	var response *NestedEnumResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(NestedEnumResponse), nil
+		response = &NestedEnumResponse{}
 	} else {
-		return respMap.Responses[0].(*NestedEnumResponse), nil
+		response = respMap.Responses[0].(*NestedEnumResponse)
+	}
+	for _, callback := range m.NestedEnumCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.NestedEnumMapper.Log()
+	return response, nil
+
+}
+
+type TestMappingServiceBlogBCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogBBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogBCallbacks.BeforeQueryCallback = append(m.BlogBCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogBAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogBCallbacks.AfterQueryCallback = append(m.BlogBCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogBCache(cache func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)) {
+	m.BlogBCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogB(ctx context.Context, r *EmptyRequest) (*examples.BlogResponse, error) {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogB", r); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogBCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogBCallbacks.Cache != nil {
+		if resp, err := m.BlogBCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogBMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogBMapper, err = mapper.New("BlogB", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogBMapper: %s", err)
+			return nil, status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogBMapper.Log()
+	}
+	respMap := m.BlogBMapper.NewResponseMapping()
+	if err := m.BlogBMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogB: %s", err)
+		return nil, status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogBMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogBMapper: %s", err)
+		m.BlogBMapper.Error = nil
+		return nil, status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var response *examples.BlogResponse
+	if len(respMap.Responses) == 0 {
+		//No Responses found
+		response = &examples.BlogResponse{}
+	} else {
+		response = respMap.Responses[0].(*examples.BlogResponse)
+	}
+	for _, callback := range m.BlogBCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogBMapper.Log()
+	return response, nil
+
+}
+
+type TestMappingServiceBlogsBCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsBBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogsBCallbacks.BeforeQueryCallback = append(m.BlogsBCallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsBAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogsBCallbacks.AfterQueryCallback = append(m.BlogsBCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsBCache(cache func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)) {
+	m.BlogsBCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogsB(r *EmptyRequest, stream TestMappingService_BlogsBServer) error {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogsB", r); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogsBCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogsBCallbacks.Cache != nil {
+		if responses, err := m.BlogsBCallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return status.Error(codes.Internal, err.Error())
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogsBMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogsBMapper, err = mapper.New("BlogsB", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogsBMapper: %s", err)
+			return status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogsBMapper.Log()
+	}
+	respMap := m.BlogsBMapper.NewResponseMapping()
+	if err := m.BlogsBMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogsB: %s", err)
+		return status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogsBMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogsBMapper: %s", err)
+		m.BlogsBMapper.Error = nil
+		return status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var responses []*examples.BlogResponse
+	for _, resp := range respMap.Responses {
+		responses = append(responses, resp.(*examples.BlogResponse))
+	}
+	for _, callback := range m.BlogsBCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogsBMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	return nil
+}
+
+type TestMappingServiceBlogBFCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogBFBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogBFCallbacks.BeforeQueryCallback = append(m.BlogBFCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogBFAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogBFCallbacks.AfterQueryCallback = append(m.BlogBFCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogBFCache(cache func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)) {
+	m.BlogBFCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogBF(ctx context.Context, r *EmptyRequest) (*examples.BlogResponse, error) {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogBF", r); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogBFCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogBFCallbacks.Cache != nil {
+		if resp, err := m.BlogBFCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogBFMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogBFMapper, err = mapper.New("BlogBF", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogBFMapper: %s", err)
+			return nil, status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogBFMapper.Log()
+	}
+	respMap := m.BlogBFMapper.NewResponseMapping()
+	if err := m.BlogBFMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogBF: %s", err)
+		return nil, status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogBFMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogBFMapper: %s", err)
+		m.BlogBFMapper.Error = nil
+		return nil, status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var response *examples.BlogResponse
+	if len(respMap.Responses) == 0 {
+		//No Responses found
+		response = &examples.BlogResponse{}
+	} else {
+		response = respMap.Responses[0].(*examples.BlogResponse)
+	}
+	for _, callback := range m.BlogBFCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogBFMapper.Log()
+	return response, nil
+
+}
+
+type TestMappingServiceBlogsBFCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsBFBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogsBFCallbacks.BeforeQueryCallback = append(m.BlogsBFCallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsBFAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogsBFCallbacks.AfterQueryCallback = append(m.BlogsBFCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsBFCache(cache func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)) {
+	m.BlogsBFCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogsBF(r *EmptyRequest, stream TestMappingService_BlogsBFServer) error {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogsBF", r); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogsBFCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogsBFCallbacks.Cache != nil {
+		if responses, err := m.BlogsBFCallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return status.Error(codes.Internal, err.Error())
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogsBFMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogsBFMapper, err = mapper.New("BlogsBF", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogsBFMapper: %s", err)
+			return status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogsBFMapper.Log()
+	}
+	respMap := m.BlogsBFMapper.NewResponseMapping()
+	if err := m.BlogsBFMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogsBF: %s", err)
+		return status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogsBFMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogsBFMapper: %s", err)
+		m.BlogsBFMapper.Error = nil
+		return status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var responses []*examples.BlogResponse
+	for _, resp := range respMap.Responses {
+		responses = append(responses, resp.(*examples.BlogResponse))
+	}
+	for _, callback := range m.BlogsBFCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogsBFMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	return nil
+}
+
+type TestMappingServiceBlogACallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogABeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogACallbacks.BeforeQueryCallback = append(m.BlogACallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogAAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogACallbacks.AfterQueryCallback = append(m.BlogACallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogACache(cache func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)) {
+	m.BlogACallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogA(ctx context.Context, r *EmptyRequest) (*examples.BlogResponse, error) {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogA", r); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogACallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogACallbacks.Cache != nil {
+		if resp, err := m.BlogACallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogAMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogAMapper, err = mapper.New("BlogA", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogAMapper: %s", err)
+			return nil, status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogAMapper.Log()
+	}
+	respMap := m.BlogAMapper.NewResponseMapping()
+	if err := m.BlogAMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogA: %s", err)
+		return nil, status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogAMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogAMapper: %s", err)
+		m.BlogAMapper.Error = nil
+		return nil, status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var response *examples.BlogResponse
+	if len(respMap.Responses) == 0 {
+		//No Responses found
+		response = &examples.BlogResponse{}
+	} else {
+		response = respMap.Responses[0].(*examples.BlogResponse)
+	}
+	for _, callback := range m.BlogACallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogAMapper.Log()
+	return response, nil
+
+}
+
+type TestMappingServiceBlogsACallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsABeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogsACallbacks.BeforeQueryCallback = append(m.BlogsACallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsAAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogsACallbacks.AfterQueryCallback = append(m.BlogsACallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsACache(cache func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)) {
+	m.BlogsACallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogsA(r *EmptyRequest, stream TestMappingService_BlogsAServer) error {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogsA", r); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogsACallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogsACallbacks.Cache != nil {
+		if responses, err := m.BlogsACallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return status.Error(codes.Internal, err.Error())
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogsAMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogsAMapper, err = mapper.New("BlogsA", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogsAMapper: %s", err)
+			return status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogsAMapper.Log()
+	}
+	respMap := m.BlogsAMapper.NewResponseMapping()
+	if err := m.BlogsAMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogsA: %s", err)
+		return status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogsAMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogsAMapper: %s", err)
+		m.BlogsAMapper.Error = nil
+		return status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var responses []*examples.BlogResponse
+	for _, resp := range respMap.Responses {
+		responses = append(responses, resp.(*examples.BlogResponse))
+	}
+	for _, callback := range m.BlogsACallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogsAMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	return nil
+}
+
+type TestMappingServiceBlogAFCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogAFBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogAFCallbacks.BeforeQueryCallback = append(m.BlogAFCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogAFAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogAFCallbacks.AfterQueryCallback = append(m.BlogAFCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogAFCache(cache func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)) {
+	m.BlogAFCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogAF(ctx context.Context, r *EmptyRequest) (*examples.BlogResponse, error) {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogAF", r); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogAFCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogAFCallbacks.Cache != nil {
+		if resp, err := m.BlogAFCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogAFMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogAFMapper, err = mapper.New("BlogAF", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogAFMapper: %s", err)
+			return nil, status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogAFMapper.Log()
+	}
+	respMap := m.BlogAFMapper.NewResponseMapping()
+	if err := m.BlogAFMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogAF: %s", err)
+		return nil, status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogAFMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogAFMapper: %s", err)
+		m.BlogAFMapper.Error = nil
+		return nil, status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var response *examples.BlogResponse
+	if len(respMap.Responses) == 0 {
+		//No Responses found
+		response = &examples.BlogResponse{}
+	} else {
+		response = respMap.Responses[0].(*examples.BlogResponse)
+	}
+	for _, callback := range m.BlogAFCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogAFMapper.Log()
+	return response, nil
+
+}
+
+type TestMappingServiceBlogsAFCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsAFBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogsAFCallbacks.BeforeQueryCallback = append(m.BlogsAFCallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsAFAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogsAFCallbacks.AfterQueryCallback = append(m.BlogsAFCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsAFCache(cache func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)) {
+	m.BlogsAFCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogsAF(r *EmptyRequest, stream TestMappingService_BlogsAFServer) error {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogsAF", r); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogsAFCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogsAFCallbacks.Cache != nil {
+		if responses, err := m.BlogsAFCallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return status.Error(codes.Internal, err.Error())
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogsAFMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogsAFMapper, err = mapper.New("BlogsAF", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogsAFMapper: %s", err)
+			return status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogsAFMapper.Log()
+	}
+	respMap := m.BlogsAFMapper.NewResponseMapping()
+	if err := m.BlogsAFMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogsAF: %s", err)
+		return status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogsAFMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogsAFMapper: %s", err)
+		m.BlogsAFMapper.Error = nil
+		return status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var responses []*examples.BlogResponse
+	for _, resp := range respMap.Responses {
+		responses = append(responses, resp.(*examples.BlogResponse))
+	}
+	for _, callback := range m.BlogsAFCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogsAFMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	return nil
+}
+
+type TestMappingServiceBlogCCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogCBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogCCallbacks.BeforeQueryCallback = append(m.BlogCCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogCAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogCCallbacks.AfterQueryCallback = append(m.BlogCCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogCCache(cache func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)) {
+	m.BlogCCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogC(ctx context.Context, r *EmptyRequest) (*examples.BlogResponse, error) {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogC", r); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogCCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogCCallbacks.Cache != nil {
+		if resp, err := m.BlogCCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogCMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogCMapper, err = mapper.New("BlogC", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogCMapper: %s", err)
+			return nil, status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogCMapper.Log()
+	}
+	respMap := m.BlogCMapper.NewResponseMapping()
+	if err := m.BlogCMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogC: %s", err)
+		return nil, status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogCMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogCMapper: %s", err)
+		m.BlogCMapper.Error = nil
+		return nil, status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var response *examples.BlogResponse
+	if len(respMap.Responses) == 0 {
+		//No Responses found
+		response = &examples.BlogResponse{}
+	} else {
+		response = respMap.Responses[0].(*examples.BlogResponse)
+	}
+	for _, callback := range m.BlogCCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogCMapper.Log()
+	return response, nil
+
+}
+
+type TestMappingServiceBlogsCCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsCBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogsCCallbacks.BeforeQueryCallback = append(m.BlogsCCallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsCAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogsCCallbacks.AfterQueryCallback = append(m.BlogsCCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsCCache(cache func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)) {
+	m.BlogsCCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogsC(r *EmptyRequest, stream TestMappingService_BlogsCServer) error {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogsC", r); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogsCCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogsCCallbacks.Cache != nil {
+		if responses, err := m.BlogsCCallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return status.Error(codes.Internal, err.Error())
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogsCMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogsCMapper, err = mapper.New("BlogsC", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogsCMapper: %s", err)
+			return status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogsCMapper.Log()
+	}
+	respMap := m.BlogsCMapper.NewResponseMapping()
+	if err := m.BlogsCMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogsC: %s", err)
+		return status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogsCMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogsCMapper: %s", err)
+		m.BlogsCMapper.Error = nil
+		return status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var responses []*examples.BlogResponse
+	for _, resp := range respMap.Responses {
+		responses = append(responses, resp.(*examples.BlogResponse))
+	}
+	for _, callback := range m.BlogsCCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogsCMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	return nil
+}
+
+type TestMappingServiceBlogCFCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogCFBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogCFCallbacks.BeforeQueryCallback = append(m.BlogCFCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogCFAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp *examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogCFCallbacks.AfterQueryCallback = append(m.BlogCFCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogCFCache(cache func(queryString string, req *EmptyRequest) (*examples.BlogResponse, error)) {
+	m.BlogCFCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogCF(ctx context.Context, r *EmptyRequest) (*examples.BlogResponse, error) {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogCF", r); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogCFCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogCFCallbacks.Cache != nil {
+		if resp, err := m.BlogCFCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogCFMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogCFMapper, err = mapper.New("BlogCF", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogCFMapper: %s", err)
+			return nil, status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogCFMapper.Log()
+	}
+	respMap := m.BlogCFMapper.NewResponseMapping()
+	if err := m.BlogCFMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogCF: %s", err)
+		return nil, status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogCFMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogCFMapper: %s", err)
+		m.BlogCFMapper.Error = nil
+		return nil, status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var response *examples.BlogResponse
+	if len(respMap.Responses) == 0 {
+		//No Responses found
+		response = &examples.BlogResponse{}
+	} else {
+		response = respMap.Responses[0].(*examples.BlogResponse)
+	}
+	for _, callback := range m.BlogCFCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogCFMapper.Log()
+	return response, nil
+
+}
+
+type TestMappingServiceBlogsCFCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *EmptyRequest) error
+	AfterQueryCallback  []func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error
+	Cache               func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsCFBeforeQueryCallback(callbacks ...func(queryString string, req *EmptyRequest) error) {
+	for _, callback := range callbacks {
+		m.BlogsCFCallbacks.BeforeQueryCallback = append(m.BlogsCFCallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsCFAfterQueryCallback(callbacks ...func(queryString string, req *EmptyRequest, resp []*examples.BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.BlogsCFCallbacks.AfterQueryCallback = append(m.BlogsCFCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *TestMappingServiceMapServer) RegisterBlogsCFCache(cache func(queryString string, req *EmptyRequest) ([]*examples.BlogResponse, error)) {
+	m.BlogsCFCallbacks.Cache = cache
+}
+
+func (m *TestMappingServiceMapServer) BlogsCF(r *EmptyRequest, stream TestMappingService_BlogsCFServer) error {
+	sqlBuffer := &bytes.Buffer{}
+	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "BlogsCF", r); err != nil {
+		return status.Error(codes.Internal, err.Error())
+	}
+	rawSql := sqlBuffer.String()
+	for _, callback := range m.BlogsCFCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.BlogsCFCallbacks.Cache != nil {
+		if responses, err := m.BlogsCFCallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	rows, err := m.DB.Query(rawSql)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		return status.Error(codes.Internal, err.Error())
+	} else {
+		defer rows.Close()
+	}
+	if m.BlogsCFMapper == nil {
+		m.mapperGenMux.Lock()
+		m.BlogsCFMapper, err = mapper.New("BlogsCF", rows, &examples.BlogResponse{})
+		m.mapperGenMux.Unlock()
+		if err != nil {
+			log.Printf("error generating BlogsCFMapper: %s", err)
+			return status.Error(codes.Internal, "error generating examples.BlogResponse mapping")
+		}
+		m.BlogsCFMapper.Log()
+	}
+	respMap := m.BlogsCFMapper.NewResponseMapping()
+	if err := m.BlogsCFMapper.GetValues(rows, respMap); err != nil {
+		log.Printf("error loading data for BlogsCF: %s", err)
+		return status.Error(codes.Internal, "error loading data")
+	}
+	if err := m.BlogsCFMapper.MapResponse(respMap); err != nil {
+		log.Printf("error mappig BlogsCFMapper: %s", err)
+		m.BlogsCFMapper.Error = nil
+		return status.Error(codes.Internal, "error mappig examples.BlogResponse")
+	}
+	var responses []*examples.BlogResponse
+	for _, resp := range respMap.Responses {
+		responses = append(responses, resp.(*examples.BlogResponse))
+	}
+	for _, callback := range m.BlogsCFCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.BlogsCFMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	return nil
 }
 
 var sqlTemplate, _ = template.New("sqlTemplate").Funcs(sprig.TxtFuncMap()).Funcs(mappertmpl.Funcs()).Parse(`
@@ -893,6 +2977,16 @@ select
        A.bio               as  author_bio,
        A.favourite_section as  author_favourite_section
 from author A where id in (1,2)
+{{ end }}
+
+{{ define "NoRespForUnary" }}
+select
+       A.username          as  author_username,
+       A.password          as  author_password,
+       A.email             as  author_email,
+       A.bio               as  author_bio,
+       A.favourite_section as  author_favourite_section
+from author A where id in (999)
 {{ end }}
 
 {{ define "RepeatedPrimative" }}
@@ -978,6 +3072,63 @@ select
         2 as nested_id,
         'egg' as nested_enum
 {{ end }}
+
+{{ define "Blog" }}
+select id from blog B order by id limit 1
+{{ end }}
+
+{{ define "Blogs" }}
+select id from blog B order by id
+{{ end }}
+
+{{ define "BlogB" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsB" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogBF" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsBF" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogA" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsA" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogAF" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsAF" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogC" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsC" }}
+{{ template "Blogs" }}
+{{ end }}
+
+{{ define "BlogCF" }}
+{{ template "Blog" }}
+{{ end }}
+
+{{ define "BlogsCF" }}
+{{ template "Blogs" }}
+{{ end }}
+
 {{ define "TypeCasting" }}
 select
 	1.1  as  double_cast,  -- float64 also testing name mapping

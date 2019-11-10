@@ -4,6 +4,7 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "go_default_library",
     srcs = [
+        "callbacks.go",
         "testdata.go",
         "tests.pb.map.go",
     ],
@@ -49,3 +50,5 @@ proto_library(
         "@com_google_protobuf//:timestamp_proto",
     ],
 )
+
+exports_files(["mapper.golden"])

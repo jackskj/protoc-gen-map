@@ -9,12 +9,9 @@ import (
 
 func iTestCasting(t *testing.T) {
 	req := td.EmptyRequest{}
-	resp, err := reflectClient.TypeCasting(ctx, &req)
+	_, err := reflectClient.TypeCasting(ctx, &req)
 	if err != nil {
 		log.Fatalf("stream error: %s", err)
-	}
-	if isVerbose {
-		printResp(resp)
 	}
 }
 
@@ -29,12 +26,9 @@ func TestIncorrectType(t *testing.T) {
 	}
 	for _, sql_type := range type_values {
 		req := td.TypeRequest{TypeValue: sql_type}
-		resp, err := reflectClient.IncorrectTypes(ctx, &req)
+		_, err := reflectClient.IncorrectTypes(ctx, &req)
 		if err != nil {
 			log.Println(err)
-		}
-		if isVerbose {
-			printResp(resp)
 		}
 	}
 }

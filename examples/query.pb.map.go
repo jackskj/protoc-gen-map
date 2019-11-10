@@ -48,13 +48,39 @@ func init() {
 }
 
 type BlogQueryServiceMapServer struct {
-	DB                        *sql.DB
-	SelectBlogMapper          *mapper.Mapper
-	SelectBlogsMapper         *mapper.Mapper
-	SelectDetailedBlogMapper  *mapper.Mapper
-	SelectDetailedBlogsMapper *mapper.Mapper
-
+	DB           *sql.DB
 	mapperGenMux sync.Mutex
+
+	SelectBlogMapper             *mapper.Mapper
+	SelectBlogCallbacks          BlogQueryServiceSelectBlogCallbacks
+	SelectBlogsMapper            *mapper.Mapper
+	SelectBlogsCallbacks         BlogQueryServiceSelectBlogsCallbacks
+	SelectDetailedBlogMapper     *mapper.Mapper
+	SelectDetailedBlogCallbacks  BlogQueryServiceSelectDetailedBlogCallbacks
+	SelectDetailedBlogsMapper    *mapper.Mapper
+	SelectDetailedBlogsCallbacks BlogQueryServiceSelectDetailedBlogsCallbacks
+}
+
+type BlogQueryServiceSelectBlogCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *BlogRequest) error
+	AfterQueryCallback  []func(queryString string, req *BlogRequest, resp *BlogResponse) error
+	Cache               func(queryString string, req *BlogRequest) (*BlogResponse, error)
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectBlogBeforeQueryCallback(callbacks ...func(queryString string, req *BlogRequest) error) {
+	for _, callback := range callbacks {
+		m.SelectBlogCallbacks.BeforeQueryCallback = append(m.SelectBlogCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectBlogAfterQueryCallback(callbacks ...func(queryString string, req *BlogRequest, resp *BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.SelectBlogCallbacks.AfterQueryCallback = append(m.SelectBlogCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectBlogCache(cache func(queryString string, req *BlogRequest) (*BlogResponse, error)) {
+	m.SelectBlogCallbacks.Cache = cache
 }
 
 func (m *BlogQueryServiceMapServer) SelectBlog(ctx context.Context, r *BlogRequest) (*BlogResponse, error) {
@@ -63,6 +89,22 @@ func (m *BlogQueryServiceMapServer) SelectBlog(ctx context.Context, r *BlogReque
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.SelectBlogCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.SelectBlogCallbacks.Cache != nil {
+		if resp, err := m.SelectBlogCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -73,7 +115,7 @@ func (m *BlogQueryServiceMapServer) SelectBlog(ctx context.Context, r *BlogReque
 	}
 	if m.SelectBlogMapper == nil {
 		m.mapperGenMux.Lock()
-		m.SelectBlogMapper, err = mapper.New(rows, &BlogResponse{})
+		m.SelectBlogMapper, err = mapper.New("SelectBlog", rows, &BlogResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating SelectBlogMapper: %s", err)
@@ -91,32 +133,84 @@ func (m *BlogQueryServiceMapServer) SelectBlog(ctx context.Context, r *BlogReque
 		m.SelectBlogMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig BlogResponse")
 	}
-	m.SelectBlogMapper.Log()
+	var response *BlogResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(BlogResponse), nil
+		response = &BlogResponse{}
 	} else {
-		return respMap.Responses[0].(*BlogResponse), nil
+		response = respMap.Responses[0].(*BlogResponse)
 	}
+	for _, callback := range m.SelectBlogCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.SelectBlogMapper.Log()
+	return response, nil
 
+}
+
+type BlogQueryServiceSelectBlogsCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *BlogIdsRequest) error
+	AfterQueryCallback  []func(queryString string, req *BlogIdsRequest, resp []*BlogResponse) error
+	Cache               func(queryString string, req *BlogIdsRequest) ([]*BlogResponse, error)
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectBlogsBeforeQueryCallback(callbacks ...func(queryString string, req *BlogIdsRequest) error) {
+	for _, callback := range callbacks {
+		m.SelectBlogsCallbacks.BeforeQueryCallback = append(m.SelectBlogsCallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectBlogsAfterQueryCallback(callbacks ...func(queryString string, req *BlogIdsRequest, resp []*BlogResponse) error) {
+	for _, callback := range callbacks {
+		m.SelectBlogsCallbacks.AfterQueryCallback = append(m.SelectBlogsCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectBlogsCache(cache func(queryString string, req *BlogIdsRequest) ([]*BlogResponse, error)) {
+	m.SelectBlogsCallbacks.Cache = cache
 }
 
 func (m *BlogQueryServiceMapServer) SelectBlogs(r *BlogIdsRequest, stream BlogQueryService_SelectBlogsServer) error {
 	sqlBuffer := &bytes.Buffer{}
 	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "SelectBlogs", r); err != nil {
-		return status.Error(codes.InvalidArgument, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.SelectBlogsCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.SelectBlogsCallbacks.Cache != nil {
+		if responses, err := m.SelectBlogsCallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n BlogIdsRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
-		return status.Error(codes.InvalidArgument, "request generated malformed query")
+		return status.Error(codes.Internal, err.Error())
 	} else {
 		defer rows.Close()
 	}
 	if m.SelectBlogsMapper == nil {
 		m.mapperGenMux.Lock()
-		m.SelectBlogsMapper, err = mapper.New(rows, &BlogResponse{})
+		m.SelectBlogsMapper, err = mapper.New("SelectBlogs", rows, &BlogResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating SelectBlogsMapper: %s", err)
@@ -134,13 +228,45 @@ func (m *BlogQueryServiceMapServer) SelectBlogs(r *BlogIdsRequest, stream BlogQu
 		m.SelectBlogsMapper.Error = nil
 		return status.Error(codes.Internal, "error mappig BlogResponse")
 	}
-	m.SelectBlogsMapper.Log()
+	var responses []*BlogResponse
 	for _, resp := range respMap.Responses {
-		if err := stream.Send(resp.(*BlogResponse)); err != nil {
-			return err
+		responses = append(responses, resp.(*BlogResponse))
+	}
+	for _, callback := range m.SelectBlogsCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.SelectBlogsMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
 		}
 	}
 	return nil
+}
+
+type BlogQueryServiceSelectDetailedBlogCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *BlogRequest) error
+	AfterQueryCallback  []func(queryString string, req *BlogRequest, resp *DetailedBlogResponse) error
+	Cache               func(queryString string, req *BlogRequest) (*DetailedBlogResponse, error)
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectDetailedBlogBeforeQueryCallback(callbacks ...func(queryString string, req *BlogRequest) error) {
+	for _, callback := range callbacks {
+		m.SelectDetailedBlogCallbacks.BeforeQueryCallback = append(m.SelectDetailedBlogCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectDetailedBlogAfterQueryCallback(callbacks ...func(queryString string, req *BlogRequest, resp *DetailedBlogResponse) error) {
+	for _, callback := range callbacks {
+		m.SelectDetailedBlogCallbacks.AfterQueryCallback = append(m.SelectDetailedBlogCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectDetailedBlogCache(cache func(queryString string, req *BlogRequest) (*DetailedBlogResponse, error)) {
+	m.SelectDetailedBlogCallbacks.Cache = cache
 }
 
 func (m *BlogQueryServiceMapServer) SelectDetailedBlog(ctx context.Context, r *BlogRequest) (*DetailedBlogResponse, error) {
@@ -149,6 +275,22 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlog(ctx context.Context, r *B
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.SelectDetailedBlogCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.SelectDetailedBlogCallbacks.Cache != nil {
+		if resp, err := m.SelectDetailedBlogCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
@@ -159,7 +301,7 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlog(ctx context.Context, r *B
 	}
 	if m.SelectDetailedBlogMapper == nil {
 		m.mapperGenMux.Lock()
-		m.SelectDetailedBlogMapper, err = mapper.New(rows, &DetailedBlogResponse{})
+		m.SelectDetailedBlogMapper, err = mapper.New("SelectDetailedBlog", rows, &DetailedBlogResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating SelectDetailedBlogMapper: %s", err)
@@ -177,32 +319,84 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlog(ctx context.Context, r *B
 		m.SelectDetailedBlogMapper.Error = nil
 		return nil, status.Error(codes.Internal, "error mappig DetailedBlogResponse")
 	}
-	m.SelectDetailedBlogMapper.Log()
+	var response *DetailedBlogResponse
 	if len(respMap.Responses) == 0 {
 		//No Responses found
-		return new(DetailedBlogResponse), nil
+		response = &DetailedBlogResponse{}
 	} else {
-		return respMap.Responses[0].(*DetailedBlogResponse), nil
+		response = respMap.Responses[0].(*DetailedBlogResponse)
 	}
+	for _, callback := range m.SelectDetailedBlogCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, response); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.SelectDetailedBlogMapper.Log()
+	return response, nil
 
+}
+
+type BlogQueryServiceSelectDetailedBlogsCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *BlogIdsRequest) error
+	AfterQueryCallback  []func(queryString string, req *BlogIdsRequest, resp []*DetailedBlogResponse) error
+	Cache               func(queryString string, req *BlogIdsRequest) ([]*DetailedBlogResponse, error)
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectDetailedBlogsBeforeQueryCallback(callbacks ...func(queryString string, req *BlogIdsRequest) error) {
+	for _, callback := range callbacks {
+		m.SelectDetailedBlogsCallbacks.BeforeQueryCallback = append(m.SelectDetailedBlogsCallbacks.BeforeQueryCallback, callback)
+
+	}
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectDetailedBlogsAfterQueryCallback(callbacks ...func(queryString string, req *BlogIdsRequest, resp []*DetailedBlogResponse) error) {
+	for _, callback := range callbacks {
+		m.SelectDetailedBlogsCallbacks.AfterQueryCallback = append(m.SelectDetailedBlogsCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *BlogQueryServiceMapServer) RegisterSelectDetailedBlogsCache(cache func(queryString string, req *BlogIdsRequest) ([]*DetailedBlogResponse, error)) {
+	m.SelectDetailedBlogsCallbacks.Cache = cache
 }
 
 func (m *BlogQueryServiceMapServer) SelectDetailedBlogs(r *BlogIdsRequest, stream BlogQueryService_SelectDetailedBlogsServer) error {
 	sqlBuffer := &bytes.Buffer{}
 	if err := sqlTemplate.ExecuteTemplate(sqlBuffer, "SelectDetailedBlogs", r); err != nil {
-		return status.Error(codes.InvalidArgument, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.SelectDetailedBlogsCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.SelectDetailedBlogsCallbacks.Cache != nil {
+		if responses, err := m.SelectDetailedBlogsCallbacks.Cache(rawSql, r); err == nil {
+			if responses != nil {
+				for _, resp := range responses {
+					if err := stream.Send(resp); err != nil {
+						return status.Error(codes.Internal, err.Error())
+					}
+				}
+				return nil
+			}
+		} else {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
 	rows, err := m.DB.Query(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n BlogIdsRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
-		return status.Error(codes.InvalidArgument, "request generated malformed query")
+		return status.Error(codes.Internal, err.Error())
 	} else {
 		defer rows.Close()
 	}
 	if m.SelectDetailedBlogsMapper == nil {
 		m.mapperGenMux.Lock()
-		m.SelectDetailedBlogsMapper, err = mapper.New(rows, &DetailedBlogResponse{})
+		m.SelectDetailedBlogsMapper, err = mapper.New("SelectDetailedBlogs", rows, &DetailedBlogResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
 			log.Printf("error generating SelectDetailedBlogsMapper: %s", err)
@@ -220,20 +414,53 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlogs(r *BlogIdsRequest, strea
 		m.SelectDetailedBlogsMapper.Error = nil
 		return status.Error(codes.Internal, "error mappig DetailedBlogResponse")
 	}
-	m.SelectDetailedBlogsMapper.Log()
+	var responses []*DetailedBlogResponse
 	for _, resp := range respMap.Responses {
-		if err := stream.Send(resp.(*DetailedBlogResponse)); err != nil {
-			return err
+		responses = append(responses, resp.(*DetailedBlogResponse))
+	}
+	for _, callback := range m.SelectDetailedBlogsCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, responses); err != nil {
+			log.Println(err.Error())
+			return status.Error(codes.Internal, err.Error())
+		}
+	}
+	m.SelectDetailedBlogsMapper.Log()
+	for _, resp := range responses {
+		if err := stream.Send(resp); err != nil {
+			return status.Error(codes.Internal, err.Error())
 		}
 	}
 	return nil
 }
 
 type InsertServiceMapServer struct {
-	DB                 *sql.DB
-	InsertAuthorMapper *mapper.Mapper
-
+	DB           *sql.DB
 	mapperGenMux sync.Mutex
+
+	InsertAuthorMapper    *mapper.Mapper
+	InsertAuthorCallbacks InsertServiceInsertAuthorCallbacks
+}
+
+type InsertServiceInsertAuthorCallbacks struct {
+	BeforeQueryCallback []func(queryString string, req *InsertAuthorRequest) error
+	AfterQueryCallback  []func(queryString string, req *InsertAuthorRequest, resp *EmptyResponse) error
+	Cache               func(queryString string, req *InsertAuthorRequest) (*EmptyResponse, error)
+}
+
+func (m *InsertServiceMapServer) RegisterInsertAuthorBeforeQueryCallback(callbacks ...func(queryString string, req *InsertAuthorRequest) error) {
+	for _, callback := range callbacks {
+		m.InsertAuthorCallbacks.BeforeQueryCallback = append(m.InsertAuthorCallbacks.BeforeQueryCallback, callback)
+	}
+}
+
+func (m *InsertServiceMapServer) RegisterInsertAuthorAfterQueryCallback(callbacks ...func(queryString string, req *InsertAuthorRequest, resp *EmptyResponse) error) {
+	for _, callback := range callbacks {
+		m.InsertAuthorCallbacks.AfterQueryCallback = append(m.InsertAuthorCallbacks.AfterQueryCallback, callback)
+	}
+}
+
+func (m *InsertServiceMapServer) RegisterInsertAuthorCache(cache func(queryString string, req *InsertAuthorRequest) (*EmptyResponse, error)) {
+	m.InsertAuthorCallbacks.Cache = cache
 }
 
 func (m *InsertServiceMapServer) InsertAuthor(ctx context.Context, r *InsertAuthorRequest) (*EmptyResponse, error) {
@@ -242,11 +469,33 @@ func (m *InsertServiceMapServer) InsertAuthor(ctx context.Context, r *InsertAuth
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rawSql := sqlBuffer.String()
+	for _, callback := range m.InsertAuthorCallbacks.BeforeQueryCallback {
+		if err := callback(rawSql, r); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+	if m.InsertAuthorCallbacks.Cache != nil {
+		if resp, err := m.InsertAuthorCallbacks.Cache(rawSql, r); err == nil {
+			if resp != nil {
+				return resp, nil
+			}
+		} else {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
 
 	_, err := m.DB.Exec(rawSql)
 	if err != nil {
 		log.Printf("error executing query.\n InsertAuthorRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	for _, callback := range m.InsertAuthorCallbacks.AfterQueryCallback {
+		if err := callback(rawSql, r, nil); err != nil {
+			log.Println(err.Error())
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 	}
 	resp := EmptyResponse{}
 	return &resp, nil

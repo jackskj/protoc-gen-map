@@ -311,7 +311,9 @@ Register{{ RPC Name}}AfterQueryCallback(myFunc func(queryString string, req {{ R
 Register{{ RPC Name}}Cache(myFunc func(queryString string, req {{ Request Type }}) ({{ Response Type }}, error))
 ```
 Where the Response Type is:
+
    a. Pointer to a proto response for unary services.
+
    b. Slice of pointers to a proto responses for streaming services.
 
 For example, If we would like to run custom monitoring before the query is run, We can create the callbacks like so:
@@ -343,8 +345,8 @@ func MyFunctionS(queryString string, req \*BlogRequest, resp []*BlogResponse) er
 	return nil
 }
 // Register the Callbacks
-mapServer.RegisterSelectBlogBeforeQueryCallback(MyFunctionU)
-mapServer.RegisterSelectBlogsBeforeQueryCallback(MyFunctionS)
+mapServer.RegisterSelectBlogAfterQueryCallback(MyFunctionU)
+mapServer.RegisterSelectBlogsAfterQueryCallback(MyFunctionS)
 ```
 And that's it, your registered functions will run every time the RPC is run. 
 You can register multiple callbacks, if you wish.

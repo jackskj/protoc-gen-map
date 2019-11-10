@@ -354,7 +354,7 @@ You can register multiple callbacks, if you wish.
 ### Caching
 With large and complex queries, it's a good idea to implement some caching layer. This can lead to major improvements in performance of your service, especially if your database grows in size and/or your app becomes more complex. 
 
-To populate your cache, use the BeforeQueryCallback described above. It provides proto response for specific proto request and query string. For example,
+To populate your cache, use the AfterQueryCallback described above. It provides proto response for specific proto request and query string. For example,
 ```
 func UpdateCache(queryString string, req *BlogRequest, resp []*BlogResponse) error {
 	// populate your cache with query or request as keys 

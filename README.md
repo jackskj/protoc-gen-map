@@ -298,17 +298,17 @@ If your application requires query caching, custom monitoring, sending custom AP
 To register a callback function for a particular RPC. protoc-gen-map creates a register methods in the format: 
 1. Before query execution: 
 ```
-Register{{ RPC Name}}BeforeQueryCallback(myFunc func(queryString string, req \*{{ Proto Request Type }}) error)
+Register{{ RPC Name}}BeforeQueryCallback(myFunc func(queryString string, req {{ Proto Request Type }}) error)
 ```
 
 2. After query execution:
 ```
-Register{{ RPC Name}}AfterQueryCallback(myFunc func(queryString string, req \*{{ Request Type }}, resp {{ Response Type }}) error)
+Register{{ RPC Name}}AfterQueryCallback(myFunc func(queryString string, req {{ Request Type }}, resp {{ Response Type }}) error)
 ```
 
 3. For Caching (described below):
 ```
-Register{{ RPC Name}}Cache(myFunc func(queryString string, req \*{{ Request Type }}) ({{ Response Type }}, error))
+Register{{ RPC Name}}Cache(myFunc func(queryString string, req {{ Request Type }}) ({{ Response Type }}, error))
 ```
 Where the Response Type is:
    a. Pointer to a proto response for unary services.
@@ -320,7 +320,7 @@ For example, If we would like to run custom monitoring before the query is run, 
 mapServer := BlogQueryServiceMapServer{DB: db}
 
 // Define custom function
-func MyFunction(queryString string, req \*BlogRequest) error {
+func MyFunction(queryString string, req *BlogRequest) error {
 	// Do some monitoritg
 	return nil
 }
@@ -333,12 +333,12 @@ mapServer.RegisterSelectBlogBeforeQueryCallback(MyFunction)
 Similarly, if we wish to run custom logic after the query has been executed, we can do it like so:
 ```
 // For Unary RPC
-func MyFunctionU(queryString string, req \*BlogRequest, resp \*BlogResponse) error {
+func MyFunctionU(queryString string, req *BlogRequest, resp *BlogResponse) error {
 	 // run custom logic
 	return nil
 }
 // For Streaming RPC
-func MyFunctionS(queryString string, req \*BlogRequest, resp []\*BlogResponse) error {
+func MyFunctionS(queryString string, req \*BlogRequest, resp []*BlogResponse) error {
 	// run custom logic
 	return nil
 }
@@ -350,11 +350,11 @@ And that's it, your registered functions will run every time the RPC is run.
 You can register multiple callbacks, if you wish.
 
 ### Caching
-With large and complex queries, its a good idea to implement some caching layer. This can lead to major improvements in performance of your service, especially if your database grows in size and/or your app becomes more complex. 
+With large and complex queries, it's a good idea to implement some caching layer. This can lead to major improvements in performance of your service, especially if your database grows in size and/or your app becomes more complex. 
 
 To populate your cache, use the BeforeQueryCallback described above. It provides proto response for specific proto request and query string. For example,
 ```
-func UpdateCache(queryString string, req \*BlogRequest, resp []\*BlogResponse) error {
+func UpdateCache(queryString string, req *BlogRequest, resp []*BlogResponse) error {
 	// populate your cache with query or request as keys 
 	// and response as values
 	return nil
@@ -362,7 +362,7 @@ func UpdateCache(queryString string, req \*BlogRequest, resp []\*BlogResponse) e
 ```
 To implement your cache, simply create a function which returns a proto response.
 ```
-func MyCache(queryString string, req \*BlogRequest) ([]\*BlogResponse, error) {
+func MyCache(queryString string, req *BlogRequest) ([]*BlogResponse, error) {
 	// retrieve response from my cache
 	return response, nil
 }

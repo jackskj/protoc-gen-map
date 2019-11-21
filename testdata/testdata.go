@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"log"
 	"math/rand"
+	"time"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/jackskj/protoc-gen-map/testdata/initdb"
@@ -17,7 +18,7 @@ const (
 
 var (
 	seed        = rand.New(rand.NewSource(1))
-	tsNow       = ptypes.TimestampNow()
+	tsSample, _ = ptypes.TimestampProto(time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC))
 	blogs       = rand.Perm(iLength)
 	authors     = rand.Perm(iLength)
 	posts       = rand.Perm(40)
@@ -137,7 +138,7 @@ func GenerateRequests() *Requests {
 				Id:        uint32(i),
 				AuthorId:  uint32(postAuthor[i]),
 				BlogId:    uint32(postBlog[i]),
-				CreatedOn: tsNow,
+				CreatedOn: tsSample,
 				Section:   getSection(),
 				Subject:   lorem(),
 				Draft:     lorem(),

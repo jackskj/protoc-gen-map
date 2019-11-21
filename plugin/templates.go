@@ -24,6 +24,9 @@ func (p *SqlPlugin) GetSQLTemplates() error {
 	var sqlFiles []string
 	for _, loc := range sqlLocations {
 		err := filepath.Walk(loc, func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
 			if info.IsDir() {
 				return nil
 			}
@@ -31,7 +34,8 @@ func (p *SqlPlugin) GetSQLTemplates() error {
 			return nil
 		})
 		if err != nil {
-			p.Error(err.Error())
+			p.Error(err.Error() + "\nErrors reading SQL directory. " +
+				"Use --sqlmap_out=sql=my/sql,template/locations to identify sql template directories")
 		}
 	}
 

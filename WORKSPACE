@@ -1,3 +1,5 @@
+#gazelle:repository_macro bazel/repositories.bzl%go_repositories
+
 workspace(name = "jackskj_protoc_gen_map")
 
 load("//bazel:http_dependencies.bzl", "http_depts")

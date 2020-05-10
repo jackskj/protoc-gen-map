@@ -312,9 +312,9 @@ message AddrRequest {
     select addr from user_addresses where username = {{ param .Username }} 
 {{ end }}
 ```
-The above query will translate to "select addr from user_addresses where username $1" for postgres (? for mysql).
+The above query will translate to "select addr from user_addresses where username = $1" for postgres (? for mysql).
 
-Note: you must specify the database dialect name in the mapper object server to use this feature. Supportes dialects include: mysql, postgre, mssql, and sqlite3.
+Note: You must specify the database dialect name in the mapper object to use this feature. Supported dialects include: mysql, postgre, mssql, and sqlite3.
 
 ## Callbacks
 
@@ -511,7 +511,6 @@ message InsertLoginRequest {
 | Implement Caching  | `ready` | `enhancement` |
 | Add parameterized query support | `ready` | `enhancement` |
 | Performance improvements aroung go reflection | `in progress` | `enhancement` |
-| MsSql parameterized query support | `in progress` | `enhancement` |
 
 ### License
 Apache License

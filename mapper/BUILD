@@ -4,6 +4,7 @@ go_library(
     name = "go_default_library",
     srcs = [
         "mapper.go",
+        "param.go",
         "reflect.go",
     ],
     importpath = "github.com/jackskj/protoc-gen-map/mapper",
@@ -18,6 +19,7 @@ go_test(
     name = "go_default_test",
     srcs = [
         "mapper_test.go",
+        "param_test.go",
         "reflect_test.go",
     ],
     data = [
@@ -26,12 +28,15 @@ go_test(
     embed = [":go_default_library"],
     deps = [
         "//examples:go_default_library",
+        "//templates:go_default_library",
         "//testdata:go_default_library",
         "//testdata/initdb:go_default_library",
         "@com_github_golang_protobuf//jsonpb:go_default_library_gen",
         "@com_github_golang_protobuf//proto:go_default_library",
+        "@com_github_masterminds_sprig//:go_default_library",
         "@com_github_yudai_gojsondiff//:go_default_library",
         "@com_github_yudai_gojsondiff//formatter:go_default_library",
+        "@io_bazel_rules_go//proto/wkt:timestamp_go_proto",
         "@org_golang_google_grpc//:go_default_library",
         "@org_golang_google_grpc//test/bufconn:go_default_library",
     ],

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes"
+	timestamppb "github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/jackskj/protoc-gen-map/testdata/initdb"
 	_ "github.com/lib/pq"
 )
@@ -175,8 +176,12 @@ func GetPG() *sql.DB {
 	db, err := sql.Open("postgres", connStr)
 	if err != nil || db.Ping() != nil {
 		log.Println("Cannot connect to testing database, \n" +
-			"to run local postgres testing DB, run \"docker run -d  -p 5432:5432 postgres\"")
+			"to run local postgres testing DB, run \"docker run --env POSTGRES_HOST_AUTH_METHOD=trust -d  -p 5432:5432 postgres\"")
 		log.Fatal(err)
 	}
 	return db
+}
+
+func GetSampleTS() timestamppb.Timestamp {
+	return *tsSample
 }

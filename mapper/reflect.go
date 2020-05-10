@@ -11,13 +11,15 @@ import (
 	"time"
 )
 
-// This set of functions casts a single value reviewed from the DB
+// This set of functions casts a single value from the DB
 // onto a single proto field type and send the proto field.
 // Inspired by the fmt package
-// Neither proto filed nor value are known types, hence I use type assertions
+// Neither proto filed nor db value are known types, hence I use type assertions
 
-// TODO, return errors for faulty conversions, for example, casting string to int
-// TODO, convert "null" responses (mssql) to nil responses
+// TODOs:
+// - reflect each column once column once, then reuse the reflection results
+// - return errors for faulty conversions, for example, casting string to int
+// - convert "null" responses (mssql) to nil responses
 
 type Value struct {
 	rfield   reflect.Value

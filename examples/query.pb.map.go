@@ -48,8 +48,8 @@ func init() {
 }
 
 type BlogQueryServiceMapServer struct {
-	DB           *sql.DB
-	mapperGenMux sync.Mutex
+	DB      *sql.DB
+	Dialect string
 
 	SelectBlogMapper             *mapper.Mapper
 	SelectBlogCallbacks          BlogQueryServiceSelectBlogCallbacks
@@ -59,6 +59,8 @@ type BlogQueryServiceMapServer struct {
 	SelectDetailedBlogCallbacks  BlogQueryServiceSelectDetailedBlogCallbacks
 	SelectDetailedBlogsMapper    *mapper.Mapper
 	SelectDetailedBlogsCallbacks BlogQueryServiceSelectDetailedBlogsCallbacks
+
+	mapperGenMux sync.Mutex
 }
 
 type BlogQueryServiceSelectBlogCallbacks struct {
@@ -105,10 +107,14 @@ func (m *BlogQueryServiceMapServer) SelectBlog(ctx context.Context, r *BlogReque
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	rows, err := m.DB.Query(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n BlogRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n BlogRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	rows, err := m.DB.Query(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n BlogRequest request: %s \n,query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	} else {
 		defer rows.Close()
@@ -201,9 +207,14 @@ func (m *BlogQueryServiceMapServer) SelectBlogs(r *BlogIdsRequest, stream BlogQu
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
-	rows, err := m.DB.Query(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n BlogIdsRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n BlogIdsRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	rows, err := m.DB.Query(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n BlogIdsRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return status.Error(codes.Internal, err.Error())
 	} else {
 		defer rows.Close()
@@ -291,10 +302,14 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlog(ctx context.Context, r *B
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	rows, err := m.DB.Query(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n BlogRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n BlogRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	rows, err := m.DB.Query(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n BlogRequest request: %s \n,query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	} else {
 		defer rows.Close()
@@ -387,9 +402,14 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlogs(r *BlogIdsRequest, strea
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
-	rows, err := m.DB.Query(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n BlogIdsRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n BlogIdsRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	rows, err := m.DB.Query(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n BlogIdsRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return status.Error(codes.Internal, err.Error())
 	} else {
 		defer rows.Close()
@@ -434,11 +454,13 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlogs(r *BlogIdsRequest, strea
 }
 
 type InsertServiceMapServer struct {
-	DB           *sql.DB
-	mapperGenMux sync.Mutex
+	DB      *sql.DB
+	Dialect string
 
 	InsertAuthorMapper    *mapper.Mapper
 	InsertAuthorCallbacks InsertServiceInsertAuthorCallbacks
+
+	mapperGenMux sync.Mutex
 }
 
 type InsertServiceInsertAuthorCallbacks struct {
@@ -485,10 +507,14 @@ func (m *InsertServiceMapServer) InsertAuthor(ctx context.Context, r *InsertAuth
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n InsertAuthorRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n InsertAuthorRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n InsertAuthorRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InsertAuthorCallbacks.AfterQueryCallback {
@@ -509,7 +535,7 @@ select
         title,
         author_id
 from blog
-where id = {{ .Id }} limit 1
+where id = {{ param .Id }} limit 1
 {{ end }}
 
 
@@ -531,9 +557,9 @@ from blog
 {{ define "SelectDetailedBlog" }}
         {{template "DetailedBlog" }}
         {{ if .Id }}
-                where B.id = {{ .Id }}
+                where B.id = {{ param .Id }}
         {{ else if .AuthorId }}
-                where B.author_id = {{ .AuthorId }}
+                where B.author_id = {{ param .AuthorId }}
         {{ end }}
 {{ end }}
 

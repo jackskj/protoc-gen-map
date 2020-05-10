@@ -12,7 +12,7 @@ gen:
 
 test:
 	# runs all tests
-	bazel test $(foreach var,$(TESTS), //$(var):go_default_test ) --verbose_failures
+	bazel test $(foreach var,$(TESTS), //$(var):go_default_test ) --verbose_failures --test_output=all
 
 install:
 	# generating map binary in $$GOPATH/bin

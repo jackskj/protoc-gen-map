@@ -4,7 +4,7 @@ select
         title,
         author_id
 from blog
-where id = {{ .Id }} limit 1
+where id = {{ param .Id }} limit 1
 {{ end }}
 
 
@@ -26,9 +26,9 @@ from blog
 {{ define "SelectDetailedBlog" }}
         {{template "DetailedBlog" }}
         {{ if .Id }}
-                where B.id = {{ .Id }}
+                where B.id = {{ param .Id }}
         {{ else if .AuthorId }}
-                where B.author_id = {{ .AuthorId }}
+                where B.author_id = {{ param .AuthorId }}
         {{ end }}
 {{ end }}
 

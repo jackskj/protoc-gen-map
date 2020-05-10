@@ -31,8 +31,8 @@ var _ = math.Inf
 // 3. Begin serving
 
 type ExecTypeServiceMapServer struct {
-	DB           *sql.DB
-	mapperGenMux sync.Mutex
+	DB      *sql.DB
+	Dialect string
 
 	CreateMapper       *mapper.Mapper
 	CreateCallbacks    ExecTypeServiceCreateCallbacks
@@ -52,6 +52,8 @@ type ExecTypeServiceMapServer struct {
 	InSeRtCallbacks    ExecTypeServiceInSeRtCallbacks
 	UpdateMapper       *mapper.Mapper
 	UpdateCallbacks    ExecTypeServiceUpdateCallbacks
+
+	mapperGenMux sync.Mutex
 }
 
 type ExecTypeServiceExecOneCallbacks struct {
@@ -98,10 +100,14 @@ func (m *ExecTypeServiceMapServer) ExecOne(ctx context.Context, r *EmptyRequest)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.ExecOneCallbacks.AfterQueryCallback {
@@ -159,10 +165,14 @@ func (m *ExecTypeServiceMapServer) ExecTwo(ctx context.Context, r *EmptyRequest)
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.ExecTwoCallbacks.AfterQueryCallback {
@@ -220,10 +230,14 @@ func (m *ExecTypeServiceMapServer) ExecThree(ctx context.Context, r *EmptyReques
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.ExecThreeCallbacks.AfterQueryCallback {
@@ -281,10 +295,14 @@ func (m *ExecTypeServiceMapServer) ExecFour(ctx context.Context, r *EmptyRequest
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.ExecFourCallbacks.AfterQueryCallback {
@@ -342,10 +360,14 @@ func (m *ExecTypeServiceMapServer) ExecFive(ctx context.Context, r *EmptyRequest
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.ExecFiveCallbacks.AfterQueryCallback {
@@ -403,10 +425,14 @@ func (m *ExecTypeServiceMapServer) InSeRt(ctx context.Context, r *EmptyRequest) 
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InSeRtCallbacks.AfterQueryCallback {
@@ -464,10 +490,14 @@ func (m *ExecTypeServiceMapServer) Delete(ctx context.Context, r *EmptyRequest) 
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.DeleteCallbacks.AfterQueryCallback {
@@ -525,10 +555,14 @@ func (m *ExecTypeServiceMapServer) Update(ctx context.Context, r *EmptyRequest) 
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.UpdateCallbacks.AfterQueryCallback {
@@ -586,10 +620,14 @@ func (m *ExecTypeServiceMapServer) Create(ctx context.Context, r *EmptyRequest) 
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.CreateCallbacks.AfterQueryCallback {

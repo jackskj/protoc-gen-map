@@ -12,6 +12,7 @@ service BlogQueryService {
   rpc SelectDetailedBlog (BlogRequest) returns (DetailedBlogResponse) {}
   rpc SelectDetailedBlogs (BlogIdsRequest) returns (stream DetailedBlogResponse) {}
 }
+
 service InsertService {
   rpc InsertAuthor (InsertAuthorRequest) returns (EmptyResponse) {}
 }

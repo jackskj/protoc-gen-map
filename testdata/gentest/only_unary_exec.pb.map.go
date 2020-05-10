@@ -31,11 +31,13 @@ var _ = math.Inf
 // 3. Begin serving
 
 type OnlyExecServiceMapServer struct {
-	DB           *sql.DB
-	mapperGenMux sync.Mutex
+	DB      *sql.DB
+	Dialect string
 
 	InsertMapper    *mapper.Mapper
 	InsertCallbacks OnlyExecServiceInsertCallbacks
+
+	mapperGenMux sync.Mutex
 }
 
 type OnlyExecServiceInsertCallbacks struct {
@@ -82,10 +84,14 @@ func (m *OnlyExecServiceMapServer) Insert(ctx context.Context, r *OnlyExec) (*On
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n OnlyExec request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n OnlyExec request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n OnlyExec request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InsertCallbacks.AfterQueryCallback {

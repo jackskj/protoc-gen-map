@@ -31,11 +31,13 @@ var _ = math.Inf
 // 3. Begin serving
 
 type OnlyQuryServiceMapServer struct {
-	DB           *sql.DB
-	mapperGenMux sync.Mutex
+	DB      *sql.DB
+	Dialect string
 
 	QueryMapper    *mapper.Mapper
 	QueryCallbacks OnlyQuryServiceQueryCallbacks
+
+	mapperGenMux sync.Mutex
 }
 
 type OnlyQuryServiceQueryCallbacks struct {
@@ -82,10 +84,14 @@ func (m *OnlyQuryServiceMapServer) Query(ctx context.Context, r *OnlyQury) (*Onl
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	rows, err := m.DB.Query(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n OnlyQury request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n OnlyQury request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	rows, err := m.DB.Query(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n OnlyQury request: %s \n,query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	} else {
 		defer rows.Close()

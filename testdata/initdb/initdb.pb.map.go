@@ -35,8 +35,8 @@ var _ = math.Inf
 // 3. Begin serving
 
 type InitServiceMapServer struct {
-	DB           *sql.DB
-	mapperGenMux sync.Mutex
+	DB      *sql.DB
+	Dialect string
 
 	InitDBMapper           *mapper.Mapper
 	InitDBCallbacks        InitServiceInitDBCallbacks
@@ -52,6 +52,8 @@ type InitServiceMapServer struct {
 	InsertPostTagCallbacks InitServiceInsertPostTagCallbacks
 	InsertTagMapper        *mapper.Mapper
 	InsertTagCallbacks     InitServiceInsertTagCallbacks
+
+	mapperGenMux sync.Mutex
 }
 
 type InitServiceInitDBCallbacks struct {
@@ -98,10 +100,14 @@ func (m *InitServiceMapServer) InitDB(ctx context.Context, r *EmptyRequest) (*Em
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n EmptyRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InitDBCallbacks.AfterQueryCallback {
@@ -159,10 +165,14 @@ func (m *InitServiceMapServer) InsertAuthor(ctx context.Context, r *InsertAuthor
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n InsertAuthorRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n InsertAuthorRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n InsertAuthorRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InsertAuthorCallbacks.AfterQueryCallback {
@@ -220,10 +230,14 @@ func (m *InitServiceMapServer) InsertBlog(ctx context.Context, r *InsertBlogRequ
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n InsertBlogRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n InsertBlogRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n InsertBlogRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InsertBlogCallbacks.AfterQueryCallback {
@@ -281,10 +295,14 @@ func (m *InitServiceMapServer) InsertComment(ctx context.Context, r *InsertComme
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n InsertCommentRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n InsertCommentRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n InsertCommentRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InsertCommentCallbacks.AfterQueryCallback {
@@ -342,10 +360,14 @@ func (m *InitServiceMapServer) InsertPost(ctx context.Context, r *InsertPostRequ
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n InsertPostRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n InsertPostRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n InsertPostRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InsertPostCallbacks.AfterQueryCallback {
@@ -403,10 +425,14 @@ func (m *InitServiceMapServer) InsertPostTag(ctx context.Context, r *InsertPostT
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n InsertPostTagRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n InsertPostTagRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n InsertPostTagRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InsertPostTagCallbacks.AfterQueryCallback {
@@ -464,10 +490,14 @@ func (m *InitServiceMapServer) InsertTag(ctx context.Context, r *InsertTagReques
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n InsertTagRequest request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n InsertTagRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n InsertTagRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.InsertTagCallbacks.AfterQueryCallback {

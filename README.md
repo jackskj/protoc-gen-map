@@ -28,10 +28,12 @@ service BlogService {
     rpc SelectBlog (BlogRequest) returns (BlogResponse) {}
     rpc SelectBlogs (BlogRequest) returns (stream BlogResponse) {}
 }
+
 message BlogRequest {
     uint32 id = 1;
     string author_id  = 2;
 }
+
 message BlogResponse {
     uint32 id = 1;
     string title  = 2;
@@ -112,6 +114,7 @@ message DetailedBlogResponse {
   Author author = 3;
   repeated Post posts = 4;
 }
+
 message Author {
   uint32 author_id = 1;
   string author_username = 2;
@@ -182,7 +185,7 @@ Make sure to change the SQL directory, proto files, and out location.
 
 ### 3. Create the Server
 
-To create a server, register an instance of "MapServer" struct created by protoc-gen-map. Make sure to provide a database connection object.
+To create a server, register an instance of "MapServer" struct created by protoc-gen-map. Make sure to provide a database connection object and dialect name.
 
 ```
 lis, err := net.Listen("tcp", fmt.Sprintf(":%d", myPort))
@@ -194,7 +197,7 @@ db, err := sql.Open(dialect, connectionString)
 if err != nil {
 	// error when connection to DB fails
 }
-mapServer := BlogQueryServiceMapServer{DB: db}
+mapServer := BlogQueryServiceMapServer{DB: db, Dialect: "postgres"}
 RegisterBlogQueryServiceServer(grpcServer, &mapServer)
 ... 
 grpcServer.Serve(lis)
@@ -287,6 +290,32 @@ We could template our statement in multiple parts like this.
     {{end}}
 {{ end }}
 ```
+
+## Parameterized Queries
+
+To prevent potential SQL injection when exposing your service, you can use the built in "param" function to pass arguments as sql parameters.
+
+
+This is expecially usefull if your request messages contain sensitive fields of string type.
+
+
+For example, assummer the following request and sql pairs.
+
+```
+message AddrRequest {
+  string username = 1;
+}
+```
+
+```
+{{ define "ParameterizedQuerie" }}
+    select addr from user_addresses where username = {{ param .Username }} 
+{{ end }}
+```
+The above query will translate to "select addr from user_addresses where username $1" for postgres (? for mysql).
+
+Note: you must specify the database dialect name in the mapper object server to use this feature. Supportes dialects include: mysql, postgre, mssql, and sqlite3.
+
 ## Callbacks
 
 To customise protoc-gen-map to your logic needs, the developer is able to specify callback functions which will be run before or after query execution. 
@@ -319,7 +348,7 @@ Where the Response Type is:
 For example, If we would like to run custom monitoring before the query is run, We can create the callbacks like so:
 ```
 // Instantiate MapServer if not done yet
-mapServer := BlogQueryServiceMapServer{DB: db}
+mapServer := BlogQueryServiceMapServer{DB: db, Dialect: "postgres"}
 
 // Define custom function
 func MyFunction(queryString string, req *BlogRequest) error {
@@ -480,7 +509,9 @@ message InsertLoginRequest {
 | Proto Enum Support | `ready` | `enhancement` |
 | Allow developer to specify callback methods | `ready` | `enhancement` |
 | Implement Caching  | `ready` | `enhancement` |
-| Add parameterized query support | `in progress` | `enhancement` |
+| Add parameterized query support | `ready` | `enhancement` |
+| Performance improvements aroung go reflection | `in progress` | `enhancement` |
+| MsSql parameterized query support | `in progress` | `enhancement` |
 
 ### License
 Apache License

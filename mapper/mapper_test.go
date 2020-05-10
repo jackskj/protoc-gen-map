@@ -46,6 +46,7 @@ var (
 	reflectClient     td.TestReflectServiceClient
 	testMappingClient td.TestMappingServiceClient
 	tdSrv             td.TestMappingServiceMapServer
+	blogServer        *ex.BlogQueryServiceMapServer
 )
 
 // Generate test data before running tests
@@ -58,10 +59,11 @@ func setup() {
 	lis = bufconn.Listen(bufSize)
 	grpcServer = grpc.NewServer()
 
-	ex.RegisterBlogQueryServiceServer(grpcServer, &ex.BlogQueryServiceMapServer{DB: db})
-	initdb.RegisterInitServiceServer(grpcServer, &initdb.InitServiceMapServer{DB: db})
-	td.RegisterTestReflectServiceServer(grpcServer, &td.TestReflectServiceMapServer{DB: db})
-	tdSrv = td.TestMappingServiceMapServer{DB: db}
+	blogServer = &ex.BlogQueryServiceMapServer{DB: db, Dialect: "postgres"}
+	ex.RegisterBlogQueryServiceServer(grpcServer, blogServer)
+	initdb.RegisterInitServiceServer(grpcServer, &initdb.InitServiceMapServer{DB: db, Dialect: "postgres"})
+	td.RegisterTestReflectServiceServer(grpcServer, &td.TestReflectServiceMapServer{DB: db, Dialect: "postgres"})
+	tdSrv = td.TestMappingServiceMapServer{DB: db, Dialect: "postgres"}
 	td.RegisterTestMappingServiceServer(grpcServer, &tdSrv)
 
 	registerCallbacks()
@@ -126,6 +128,26 @@ func createDatabase() {
 	for i := 0; i < len(requests.InsertTagRequests); i++ {
 		initService.InsertTag(ctx, requests.InsertTagRequests[i])
 	}
+}
+
+func TestParamsResponse(t *testing.T) {
+	req := ex.BlogRequest{
+		Id:       uint32(1),
+		AuthorId: uint32(1),
+	}
+
+	resp, err := blogClient.SelectBlog(ctx, &req)
+	protoResult("blogClient.SelectParam", resp, err, nil, false)
+
+	blogServer.Dialect = "mysql"
+	resp, err = blogClient.SelectBlog(ctx, &req)
+	protoResult("blogClient.IncorrectParam", resp, err, nil, true)
+
+	blogServer.Dialect = ""
+	resp, err = blogClient.SelectBlog(ctx, &req)
+	protoResult("blogClient.MissingDialectParam", resp, nil, err, true)
+
+	blogServer.Dialect = "postgres"
 }
 
 func TestOneMessageStreamingResponse(t *testing.T) {
@@ -330,8 +352,6 @@ func protoResult(testName string, resp interface{}, err error, sErr error, expec
 		if sErr != nil {
 			log.Fatalln("protoc-gen-map error with "+testName+":%v", sErr)
 		}
-	}
-	if expectsErr == false {
 		testResults[testName] = resp
 	} else if expectsErr == true {
 		testResults[testName] = fmt.Sprintf("%v", []error{err, sErr})

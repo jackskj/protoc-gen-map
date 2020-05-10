@@ -46,10 +46,15 @@ func (m *{{ .ServiceName }}MapServer) {{ .MethodName }}(ctx context.Context, r *
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	}
-	{{ if eq .QueryType "Exec" }}
-	_, err := m.DB.Exec(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n {{ .RequestName }} request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	{{- if eq .QueryType "Exec" }}
+	_, err = m.DB.Exec(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	for _, callback := range m.{{ .MethodName }}Callbacks.AfterQueryCallback {
@@ -61,9 +66,9 @@ func (m *{{ .ServiceName }}MapServer) {{ .MethodName }}(ctx context.Context, r *
 	resp :={{ .ResponseName }}{}
         return &resp, nil
 	{{ else if eq .QueryType "Query" }}
-	rows, err := m.DB.Query(rawSql)
+	rows, err := m.DB.Query(preparedSql, args...)
 	if err != nil {
-		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n,query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	} else {
 		defer rows.Close()

@@ -1,11 +1,12 @@
 package templates
 
 import (
+	"encoding/base64"
 	"fmt"
-	"github.com/golang/protobuf/ptypes"
 	"reflect"
 	"text/template"
 
+	"github.com/golang/protobuf/ptypes"
 	protots "github.com/golang/protobuf/ptypes/timestamp"
 )
 
@@ -27,6 +28,9 @@ var functionMap = map[string]interface{}{
 	//quoting helpers
 	"quoteall":  quoteall,
 	"squoteall": squoteall,
+
+	//query parameterization
+	"param": parameterize,
 }
 
 // Adds single quotes to all elements in array
@@ -111,4 +115,9 @@ func quotedList(list interface{}, qtype quoteType) []string {
 		}
 		return nl
 	}
+}
+
+func parameterize(param interface{}) string {
+	paramStr := fmt.Sprintf("%v", param)
+	return " map_param_" + base64.StdEncoding.EncodeToString([]byte(paramStr)) + " "
 }

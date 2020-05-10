@@ -52,9 +52,14 @@ func (m *{{ .ServiceName }}MapServer) {{ .MethodName }}(r *{{ .RequestName }}, s
 			return status.Error(codes.Internal, err.Error())
 		}
 	}
-	rows, err := m.DB.Query(rawSql)
+	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
-		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n,query: %s \n error: %s", r, rawSql, err)
+		log.Printf("error preparing sql query.\n {{ .RequestName }} request: %s \n query: %s \n error: %s", r, rawSql, err)
+		return status.Error(codes.InvalidArgument, "request generated malformed query")
+	}
+	rows, err := m.DB.Query(preparedSql, args...)
+	if err != nil {
+		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return status.Error(codes.Internal, err.Error())
 	} else {
 		defer rows.Close()

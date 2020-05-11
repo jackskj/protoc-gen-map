@@ -1,4 +1,14 @@
 {
+    "ParamMap_Args_mysql": "[\u003cnil\u003e  a !#$%\u0026()*+,-./:;\u003c=\u003e?@[\\]^_{|}~ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 6 {{{} [] [] \u003cnil\u003e} 6 [] 1257894000 0} [a b c d e] a b c d e]",
+    "ParamMap_Args_postgres": "[\u003cnil\u003e  a !#$%\u0026()*+,-./:;\u003c=\u003e?@[\\]^_{|}~ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 6 {{{} [] [] \u003cnil\u003e} 6 [] 1257894000 0} [a b c d e] a b c d e]",
+    "ParamMap_Error_Raw_": "Parameterized query detected, but dialect is unknown. Specify DB connection along with dialect name, (postgres, mysql, mssql, sqlite3) in the gprc service server.",
+    "ParamMap_Error_Raw_unknown": "Parameterized queries are not supported for specified dialect: unknown. Known dialects include postgres, mysql, mssql, and sqlite3.",
+    "ParamMap_Prepared_mysql": "\nselect ?\n\nselect ?\n\nselect ?\n\nselect ?\n\nselect ?\n\nselect ?\n\nselect ?\n\nselect ?\n\n---\u003c \u003e---\n\nselect?,?,?,?,?, \n",
+    "ParamMap_Prepared_postgres": "\nselect $1\n\nselect $2\n\nselect $3\n\nselect $4\n\nselect $5\n\nselect $6\n\nselect $7\n\nselect $8\n\n---\u003c \u003e---\n\nselect$9,$10,$11,$12,$13, \n",
+    "ParamMap_Raw_mysql": "\nselect map_param_PG5pbD4=\n\nselect map_param_\n\nselect map_param_YQ==\n\nselect map_param_ISMkJSYoKSorLC0uLzo7PD0+P0BbXF1eX3t8fX4=\n\nselect map_param_YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==\n\nselect map_param_Ng==\n\nselect map_param_e3t7fSBbXSBbXSA8bmlsPn0gNiBbXSAxMjU3ODk0MDAwIDB9\n\nselect map_param_W2EgYiBjIGQgZV0=\n\n---\u003c \u003e---\n\nselectmap_param_YQ==,map_param_Yg==,map_param_Yw==,map_param_ZA==,map_param_ZQ==, \n",
+    "ParamMap_Raw_postgres": "\nselect map_param_PG5pbD4=\n\nselect map_param_\n\nselect map_param_YQ==\n\nselect map_param_ISMkJSYoKSorLC0uLzo7PD0+P0BbXF1eX3t8fX4=\n\nselect map_param_YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYQ==\n\nselect map_param_Ng==\n\nselect map_param_e3t7fSBbXSBbXSA8bmlsPn0gNiBbXSAxMjU3ODk0MDAwIDB9\n\nselect map_param_W2EgYiBjIGQgZV0=\n\n---\u003c \u003e---\n\nselectmap_param_YQ==,map_param_Yg==,map_param_Yw==,map_param_ZA==,map_param_ZQ==, \n",
+    "blogClient.IncorrectParam": "[rpc error: code = InvalidArgument desc = request generated malformed query \u003cnil\u003e]",
+    "blogClient.MissingDialectParam": "[\u003cnil\u003e rpc error: code = InvalidArgument desc = request generated malformed query]",
     "blogClient.SelectBlogs_1": [
         {
             "id": 1,
@@ -1919,6 +1929,11 @@
             ]
         }
     ],
+    "blogClient.SelectParam": {
+        "id": 1,
+        "title": "oJj4PSn4Oe",
+        "author_id": "4"
+    },
     "callbacks": {
         "BlogAfterQueryCallback": 1,
         "BlogBeforeQueryCallback": 1,

@@ -16,23 +16,25 @@ import (
 )
 
 type ParamTest struct {
-	NilVal     *string
-	ShortVal   string
-	ComplexVal string
-	LongVal    string
-	IntVal     int
-	TimeVal    timestamp.Timestamp
-	SliceVal   []string
+	NilVal       *string
+	ShortVal     string
+	ComplexVal   string
+	LongVal      string
+	WhitespacVal string
+	IntVal       int
+	TimeVal      timestamp.Timestamp
+	SliceVal     []string
 }
 
 func TestParametarizedQuery(t *testing.T) {
 	testingVal := ParamTest{
-		ShortVal:   "a",
-		ComplexVal: "!#$%&()*+,-./:;<=>?@[\\]^_{|}~",
-		LongVal:    strings.Repeat("a", 100),
-		IntVal:     6,
-		TimeVal:    td.GetSampleTS(),
-		SliceVal:   []string{"a", "b", "c", "d", "e"},
+		ShortVal:     "a",
+		ComplexVal:   "!#$%&()*+,-./:;<=>?@[\\]^_{|}~",
+		LongVal:      strings.Repeat("a", 100),
+		WhitespacVal: "< >",
+		IntVal:       6,
+		TimeVal:      td.GetSampleTS(),
+		SliceVal:     []string{"a", "b", "c", "d", "e"},
 	}
 	paramBuff := &bytes.Buffer{}
 
@@ -72,6 +74,8 @@ select {{ param .IntVal }}
 select {{ param .TimeVal }}
 
 select {{ param .SliceVal }}
+
+---{{ .WhitespacVal }}---
 
 select
 {{- range .SliceVal }}

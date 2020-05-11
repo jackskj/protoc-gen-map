@@ -7,6 +7,7 @@ import (
 	"log"
 	"reflect"
 	"strings"
+	"unicode"
 
 	"github.com/golang/protobuf/ptypes/timestamp"
 )
@@ -244,6 +245,7 @@ func generateSqlMap(sqlMap *SqlMap, protoMsg interface{}, columns []string) {
 			} else if subMapType == "collection" {
 				subMap.MapType = Collection
 				subMap.ProtoSliceElem = field.Type.Elem()
+				log.Println(protoStruct.Field(i))
 				generateSqlMap(&subMap, field.Type, columns)
 				if subMap.Error != nil {
 					sqlMap.Error = subMap.Error
@@ -313,11 +315,11 @@ func isEnum(field reflect.StructField) bool {
 	return false
 }
 
-// Tests if the struct field is a submap, this is true for nester and repeated fields
+// Tests if the struct field is a submap, this is true for nested and repeated fields
 // Repeated fields of primitive types or Timestamp/Empty types are not allowed
 func isSubMap(field reflect.StructField) (string, bool, error) {
 	kind := field.Type.Kind()
-	if field.Name[0:3] == "XXX" {
+	if isProtoInternal(field.Name) == true {
 		return "proto_field", false, nil
 	} else if kind == reflect.Slice {
 		if allowedKinds[field.Type.Elem().Kind()] {
@@ -516,6 +518,18 @@ func RegisterEnums(enums map[string]map[string]int32) {
 			EnumVals[enumMapName] = enumMapVals
 		}
 	}
+}
+
+// tests whether the field name is internal to go protobuff
+// any field name starting with XXX as well as  unexported fields are considered specific to protos
+// this is trucky as this defunition changes with different versions of golang proto generators
+func isProtoInternal(fieldName string) bool {
+	if fieldName[0:3] == "XXX" {
+		return true
+	} else if unicode.IsLower(rune(fieldName[0])) { // unexported  fields
+		return true
+	}
+	return false
 }
 
 //If non-breaking issues are found while generating sqlmap, this function prints them

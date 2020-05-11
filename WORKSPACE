@@ -1,4 +1,4 @@
-#gazelle:repository_macro bazel/repositories.bzl%go_repositories
+#gazelle:repository_macro bazel/go_repositories.bzl%
 
 workspace(name = "jackskj_protoc_gen_map")
 

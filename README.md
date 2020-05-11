@@ -197,7 +197,7 @@ db, err := sql.Open(dialect, connectionString)
 if err != nil {
 	// error when connection to DB fails
 }
-mapServer := BlogQueryServiceMapServer{DB: db, Dialect: "postgres"}
+mapServer := BlogQueryServiceMapServer{DB: db, Dialect: dialect}
 RegisterBlogQueryServiceServer(grpcServer, &mapServer)
 ... 
 grpcServer.Serve(lis)
@@ -299,7 +299,7 @@ To prevent potential SQL injection when exposing your service, you can use the b
 This is expecially usefull if your request messages contain sensitive fields of string type.
 
 
-For example, assummer the following request and sql pairs.
+For example, assumme the following request and sql pairs.
 
 ```
 message AddrRequest {
@@ -314,7 +314,7 @@ message AddrRequest {
 ```
 The above query will translate to "select addr from user_addresses where username = $1" for postgres (? for mysql).
 
-Note: You must specify the database dialect name in the mapper object to use this feature. Supported dialects include: mysql, postgre, mssql, and sqlite3.
+Note: You must specify the database dialect name in the mapper object to use this feature. Supported dialects include: mysql, postgres, mssql, and sqlite3.
 
 ## Callbacks
 
@@ -369,7 +369,7 @@ func MyFunctionU(queryString string, req *BlogRequest, resp *BlogResponse) error
 	return nil
 }
 // For Streaming RPC
-func MyFunctionS(queryString string, req \*BlogRequest, resp []*BlogResponse) error {
+func MyFunctionS(queryString string, req *BlogRequest, resp []*BlogResponse) error {
 	// run custom logic
 	return nil
 }
@@ -490,7 +490,11 @@ message InsertLoginRequest {
 ```
 
 ## Important Notes 
-1. Queries that do not expect any returned records (insert, update, create, delete operations) must satisfy one of the following criteria. Note that queries may fail if at least one is not satisfied. 
+1. protoc-gen-map automatically removes any duplicate rows returned by your query. If this is not a desired outcome, you should include a uniquely identifiable columns in your query and the corresponding fields in your message.
+
+2. Data mapping blueprint is generated with the first query request. Successive requests should be consistent. For example, column names should not change depending on the request message.
+
+3. Queries that do not expect any returned records (insert, update, create, delete operations) must satisfy one of the following criteria. Note that queries may fail if at least one is not satisfied. 
  - RPC mame name must begin with keywords "insert", "update", "create", or "delete"(case not sensitive)
  - Response name must begin with "empty","nil" or "null"(case not sensitive)
  
@@ -498,10 +502,6 @@ message InsertLoginRequest {
  ```
   rpc InsertBlog (InsertBlogRequest) returns (EmptyResponse) {}
  ```
-2. protoc-gen-map automatically removes any duplicate rows returned by your query. If this is not a desired outcome, you should include a uniquely identifiable columns in your query and the corresponding fields in your message.
-
-3. Data mapping blueprint is generated with the first query request. Successive requests should be consistent. For example. column names should not change depending on the request message.
-
 ### Roadmap
 
 | Goal | Status | Label |
@@ -510,7 +510,8 @@ message InsertLoginRequest {
 | Allow developer to specify callback methods | `ready` | `enhancement` |
 | Implement Caching  | `ready` | `enhancement` |
 | Add parameterized query support | `ready` | `enhancement` |
-| Performance improvements aroung go reflection | `in progress` | `enhancement` |
+| Performance improvements around go reflection | `in progress` | `enhancement` |
+| Reduce ammount of generated code | `in progress` | `enhancement` |
 
 ### License
 Apache License

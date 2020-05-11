@@ -119,5 +119,5 @@ func quotedList(list interface{}, qtype quoteType) []string {
 
 func parameterize(param interface{}) string {
 	paramStr := fmt.Sprintf("%v", param)
-	return " map_param_" + base64.StdEncoding.EncodeToString([]byte(paramStr)) + " "
+	return "map_param_" + base64.StdEncoding.EncodeToString([]byte(paramStr))
 }

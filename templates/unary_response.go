@@ -52,8 +52,10 @@ func (m *{{ .ServiceName }}MapServer) {{ .MethodName }}(ctx context.Context, r *
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
 	{{- if eq .QueryType "Exec" }}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
@@ -66,8 +68,10 @@ func (m *{{ .ServiceName }}MapServer) {{ .MethodName }}(ctx context.Context, r *
 	resp :={{ .ResponseName }}{}
         return &resp, nil
 	{{ else if eq .QueryType "Query" }}
-	rows, err := m.DB.Query(preparedSql, args...)
-	if err != nil {
+	rows, err := m.DB.QueryContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n {{ .RequestName }} request: %s \n,query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	} else {

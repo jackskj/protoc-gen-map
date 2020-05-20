@@ -10,6 +10,7 @@ import (
 
 	//protoc-gen-map packages
 	bytes "bytes"
+	context "context"
 	sql "database/sql"
 	sprig "github.com/Masterminds/sprig"
 	mapper "github.com/jackskj/protoc-gen-map/mapper"
@@ -95,10 +96,12 @@ func (m *OnlyStreamingServiceMapServer) Stream(r *OnlyStreaming, stream OnlyStre
 	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
 		log.Printf("error preparing sql query.\n OnlyStreaming request: %s \n query: %s \n error: %s", r, rawSql, err)
-		return status.Error(codes.InvalidArgument, "request generated malformed query")
+		return status.Error(codes.InvalidArgument, "Request generated malformed query.")
 	}
-	rows, err := m.DB.Query(preparedSql, args...)
-	if err != nil {
+	rows, err := m.DB.QueryContext(stream.Context(), preparedSql, args...)
+	if stream.Context().Err() == context.Canceled {
+		return status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n OnlyStreaming request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return status.Error(codes.Internal, err.Error())
 	} else {
@@ -109,8 +112,8 @@ func (m *OnlyStreamingServiceMapServer) Stream(r *OnlyStreaming, stream OnlyStre
 		m.StreamMapper, err = mapper.New("Stream", rows, &OnlyStreaming{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
-			log.Printf("error generating StreamMapper: %s", err)
-			return status.Error(codes.Internal, "error generating OnlyStreaming mapping")
+			log.Printf("Error generating StreamMapper: %s", err)
+			return status.Error(codes.Internal, "Error generating OnlyStreaming mapping.")
 		}
 		m.StreamMapper.Log()
 	}

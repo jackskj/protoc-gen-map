@@ -89,8 +89,10 @@ func (m *OnlyExecServiceMapServer) Insert(ctx context.Context, r *OnlyExec) (*On
 		log.Printf("error preparing sql query.\n OnlyExec request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n OnlyExec request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}

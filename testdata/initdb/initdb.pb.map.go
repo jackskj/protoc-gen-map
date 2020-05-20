@@ -105,8 +105,10 @@ func (m *InitServiceMapServer) InitDB(ctx context.Context, r *EmptyRequest) (*Em
 		log.Printf("error preparing sql query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n EmptyRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
@@ -170,8 +172,10 @@ func (m *InitServiceMapServer) InsertAuthor(ctx context.Context, r *InsertAuthor
 		log.Printf("error preparing sql query.\n InsertAuthorRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n InsertAuthorRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
@@ -235,8 +239,10 @@ func (m *InitServiceMapServer) InsertBlog(ctx context.Context, r *InsertBlogRequ
 		log.Printf("error preparing sql query.\n InsertBlogRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n InsertBlogRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
@@ -300,8 +306,10 @@ func (m *InitServiceMapServer) InsertComment(ctx context.Context, r *InsertComme
 		log.Printf("error preparing sql query.\n InsertCommentRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n InsertCommentRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
@@ -365,8 +373,10 @@ func (m *InitServiceMapServer) InsertPost(ctx context.Context, r *InsertPostRequ
 		log.Printf("error preparing sql query.\n InsertPostRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n InsertPostRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
@@ -430,8 +440,10 @@ func (m *InitServiceMapServer) InsertPostTag(ctx context.Context, r *InsertPostT
 		log.Printf("error preparing sql query.\n InsertPostTagRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n InsertPostTagRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
@@ -495,8 +507,10 @@ func (m *InitServiceMapServer) InsertTag(ctx context.Context, r *InsertTagReques
 		log.Printf("error preparing sql query.\n InsertTagRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n InsertTagRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}

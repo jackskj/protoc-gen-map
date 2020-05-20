@@ -112,8 +112,10 @@ func (m *BlogQueryServiceMapServer) SelectBlog(ctx context.Context, r *BlogReque
 		log.Printf("error preparing sql query.\n BlogRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	rows, err := m.DB.Query(preparedSql, args...)
-	if err != nil {
+	rows, err := m.DB.QueryContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n BlogRequest request: %s \n,query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	} else {
@@ -210,10 +212,12 @@ func (m *BlogQueryServiceMapServer) SelectBlogs(r *BlogIdsRequest, stream BlogQu
 	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
 		log.Printf("error preparing sql query.\n BlogIdsRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
-		return status.Error(codes.InvalidArgument, "request generated malformed query")
+		return status.Error(codes.InvalidArgument, "Request generated malformed query.")
 	}
-	rows, err := m.DB.Query(preparedSql, args...)
-	if err != nil {
+	rows, err := m.DB.QueryContext(stream.Context(), preparedSql, args...)
+	if stream.Context().Err() == context.Canceled {
+		return status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n BlogIdsRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return status.Error(codes.Internal, err.Error())
 	} else {
@@ -224,8 +228,8 @@ func (m *BlogQueryServiceMapServer) SelectBlogs(r *BlogIdsRequest, stream BlogQu
 		m.SelectBlogsMapper, err = mapper.New("SelectBlogs", rows, &BlogResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
-			log.Printf("error generating SelectBlogsMapper: %s", err)
-			return status.Error(codes.Internal, "error generating BlogResponse mapping")
+			log.Printf("Error generating SelectBlogsMapper: %s", err)
+			return status.Error(codes.Internal, "Error generating BlogResponse mapping.")
 		}
 		m.SelectBlogsMapper.Log()
 	}
@@ -307,8 +311,10 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlog(ctx context.Context, r *B
 		log.Printf("error preparing sql query.\n BlogRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	rows, err := m.DB.Query(preparedSql, args...)
-	if err != nil {
+	rows, err := m.DB.QueryContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n BlogRequest request: %s \n,query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	} else {
@@ -405,10 +411,12 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlogs(r *BlogIdsRequest, strea
 	preparedSql, args, err := mapper.PrepareQuery(m.Dialect, sqlBuffer.Bytes())
 	if err != nil {
 		log.Printf("error preparing sql query.\n BlogIdsRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
-		return status.Error(codes.InvalidArgument, "request generated malformed query")
+		return status.Error(codes.InvalidArgument, "Request generated malformed query.")
 	}
-	rows, err := m.DB.Query(preparedSql, args...)
-	if err != nil {
+	rows, err := m.DB.QueryContext(stream.Context(), preparedSql, args...)
+	if stream.Context().Err() == context.Canceled {
+		return status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n BlogIdsRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return status.Error(codes.Internal, err.Error())
 	} else {
@@ -419,8 +427,8 @@ func (m *BlogQueryServiceMapServer) SelectDetailedBlogs(r *BlogIdsRequest, strea
 		m.SelectDetailedBlogsMapper, err = mapper.New("SelectDetailedBlogs", rows, &DetailedBlogResponse{})
 		m.mapperGenMux.Unlock()
 		if err != nil {
-			log.Printf("error generating SelectDetailedBlogsMapper: %s", err)
-			return status.Error(codes.Internal, "error generating DetailedBlogResponse mapping")
+			log.Printf("Error generating SelectDetailedBlogsMapper: %s", err)
+			return status.Error(codes.Internal, "Error generating DetailedBlogResponse mapping.")
 		}
 		m.SelectDetailedBlogsMapper.Log()
 	}
@@ -512,8 +520,10 @@ func (m *InsertServiceMapServer) InsertAuthor(ctx context.Context, r *InsertAuth
 		log.Printf("error preparing sql query.\n InsertAuthorRequest request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	_, err = m.DB.Exec(preparedSql, args...)
-	if err != nil {
+	_, err = m.DB.ExecContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n InsertAuthorRequest request: %s \n query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}

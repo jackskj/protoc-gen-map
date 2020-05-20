@@ -278,6 +278,24 @@ func TestFailedStreamingCallbacks(t *testing.T) {
 	protoResult("testMappingClient.BlogsCF", sResp, err, sErr, true)
 }
 
+func TestCanceledContext(t *testing.T) {
+	// todo defer
+	timeout, _ := time.ParseDuration("5s")
+
+	// unary
+	ctx, cancelFunc := context.WithCancel(context.TODO())
+	time.AfterFunc(timeout, cancelFunc)
+	resp, sErr := testMappingClient.CanceledUnaryContext(ctx, &td.EmptyRequest{})
+	protoResult("testMappingClient.CanceledUnaryContext", resp, nil, sErr, true) // canceled during query execution
+
+	// streaming
+	ctx, cancelFunc = context.WithCancel(context.TODO())
+	time.AfterFunc(timeout, cancelFunc)
+	stream, err := testMappingClient.CanceledStreamContext(ctx, &td.EmptyRequest{})
+	sResp, sErr := postReader(stream)
+	protoResult("testMappingClient.CanceledStreamContext", sResp, err, sErr, true)
+}
+
 func blogStreamReader(stream ex.BlogQueryService_SelectBlogsClient) ([]proto.Message, error) {
 	var responses []proto.Message
 	for {

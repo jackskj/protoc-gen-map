@@ -1424,7 +1424,7 @@ var file_testdata_tests_proto_rawDesc = []byte{
 	0x73, 0x12, 0x15, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x54, 0x79, 0x70,
 	0x65, 0x52, 0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x19, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x64,
 	0x61, 0x74, 0x61, 0x2e, 0x47, 0x6f, 0x54, 0x79, 0x70, 0x65, 0x73, 0x52, 0x65, 0x73, 0x70, 0x6f,
-	0x6e, 0x73, 0x65, 0x22, 0x00, 0x32, 0xea, 0x0f, 0x0a, 0x12, 0x54, 0x65, 0x73, 0x74, 0x4d, 0x61,
+	0x6e, 0x73, 0x65, 0x22, 0x00, 0x32, 0xf1, 0x10, 0x0a, 0x12, 0x54, 0x65, 0x73, 0x74, 0x4d, 0x61,
 	0x70, 0x70, 0x69, 0x6e, 0x67, 0x53, 0x65, 0x72, 0x76, 0x69, 0x63, 0x65, 0x12, 0x58, 0x0a, 0x14,
 	0x52, 0x65, 0x70, 0x65, 0x61, 0x74, 0x65, 0x64, 0x41, 0x73, 0x73, 0x6f, 0x63, 0x69, 0x61, 0x74,
 	0x69, 0x6f, 0x6e, 0x73, 0x12, 0x16, 0x2e, 0x74, 0x65, 0x73, 0x74, 0x64, 0x61, 0x74, 0x61, 0x2e,
@@ -1551,11 +1551,19 @@ var file_testdata_tests_proto_rawDesc = []byte{
 	0x2e, 0x74, 0x65, 0x73, 0x74, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x52,
 	0x65, 0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x16, 0x2e, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65,
 	0x73, 0x2e, 0x42, 0x6c, 0x6f, 0x67, 0x52, 0x65, 0x73, 0x70, 0x6f, 0x6e, 0x73, 0x65, 0x22, 0x00,
-	0x30, 0x01, 0x42, 0x35, 0x5a, 0x33, 0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d,
-	0x2f, 0x6a, 0x61, 0x63, 0x6b, 0x73, 0x6b, 0x6a, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x2d,
-	0x67, 0x65, 0x6e, 0x2d, 0x6d, 0x61, 0x70, 0x2f, 0x74, 0x65, 0x73, 0x74, 0x64, 0x61, 0x74, 0x61,
-	0x3b, 0x74, 0x65, 0x73, 0x74, 0x64, 0x61, 0x74, 0x61, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f,
-	0x33,
+	0x30, 0x01, 0x12, 0x40, 0x0a, 0x14, 0x43, 0x61, 0x6e, 0x63, 0x65, 0x6c, 0x65, 0x64, 0x55, 0x6e,
+	0x61, 0x72, 0x79, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74, 0x12, 0x16, 0x2e, 0x74, 0x65, 0x73,
+	0x74, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x52, 0x65, 0x71, 0x75, 0x65,
+	0x73, 0x74, 0x1a, 0x0e, 0x2e, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x73, 0x2e, 0x50, 0x6f,
+	0x73, 0x74, 0x22, 0x00, 0x12, 0x43, 0x0a, 0x15, 0x43, 0x61, 0x6e, 0x63, 0x65, 0x6c, 0x65, 0x64,
+	0x53, 0x74, 0x72, 0x65, 0x61, 0x6d, 0x43, 0x6f, 0x6e, 0x74, 0x65, 0x78, 0x74, 0x12, 0x16, 0x2e,
+	0x74, 0x65, 0x73, 0x74, 0x64, 0x61, 0x74, 0x61, 0x2e, 0x45, 0x6d, 0x70, 0x74, 0x79, 0x52, 0x65,
+	0x71, 0x75, 0x65, 0x73, 0x74, 0x1a, 0x0e, 0x2e, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x73,
+	0x2e, 0x50, 0x6f, 0x73, 0x74, 0x22, 0x00, 0x30, 0x01, 0x42, 0x35, 0x5a, 0x33, 0x67, 0x69, 0x74,
+	0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6a, 0x61, 0x63, 0x6b, 0x73, 0x6b, 0x6a, 0x2f,
+	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x63, 0x2d, 0x67, 0x65, 0x6e, 0x2d, 0x6d, 0x61, 0x70, 0x2f, 0x74,
+	0x65, 0x73, 0x74, 0x64, 0x61, 0x74, 0x61, 0x3b, 0x74, 0x65, 0x73, 0x74, 0x64, 0x61, 0x74, 0x61,
+	0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -1645,39 +1653,43 @@ var file_testdata_tests_proto_depIdxs = []int32{
 	17, // 41: testdata.TestMappingService.BlogsC:input_type -> testdata.EmptyRequest
 	17, // 42: testdata.TestMappingService.BlogCF:input_type -> testdata.EmptyRequest
 	17, // 43: testdata.TestMappingService.BlogsCF:input_type -> testdata.EmptyRequest
-	1,  // 44: testdata.TestReflectService.TypeCasting:output_type -> testdata.TypeCastingResponse
-	3,  // 45: testdata.TestReflectService.IncorrectTypes:output_type -> testdata.GoTypesResponse
-	4,  // 46: testdata.TestMappingService.RepeatedAssociations:output_type -> testdata.RepeatedAssociationsResponse
-	19, // 47: testdata.TestMappingService.EmptyQuery:output_type -> testdata.SampleResponse
-	23, // 48: testdata.TestMappingService.InsertQueryAsExec:output_type -> examples.Author
-	19, // 49: testdata.TestMappingService.ExecAsQuery:output_type -> testdata.SampleResponse
-	5,  // 50: testdata.TestMappingService.UnclaimedColumns:output_type -> testdata.AuthorUserNameResponse
-	23, // 51: testdata.TestMappingService.MultipleRespForUnary:output_type -> examples.Author
-	23, // 52: testdata.TestMappingService.NoRespForUnary:output_type -> examples.Author
-	6,  // 53: testdata.TestMappingService.RepeatedPrimative:output_type -> testdata.RepeatedPrimativeResponse
-	7,  // 54: testdata.TestMappingService.RepeatedEmpty:output_type -> testdata.RepeatedEmptyResponse
-	9,  // 55: testdata.TestMappingService.EmptyNestedField:output_type -> testdata.NestedFieldResponse
-	23, // 56: testdata.TestMappingService.NoMatchingColumns:output_type -> examples.Author
-	10, // 57: testdata.TestMappingService.AssociationInCollection:output_type -> testdata.AssociationInCollectionResponse
-	14, // 58: testdata.TestMappingService.CollectionInAssociation:output_type -> testdata.CollectionInAssociationResponse
-	8,  // 59: testdata.TestMappingService.RepeatedTimestamp:output_type -> testdata.RepeatedTimestampResponse
-	22, // 60: testdata.TestMappingService.NullResoultsForSubmaps:output_type -> examples.Post
-	23, // 61: testdata.TestMappingService.SimpleEnum:output_type -> examples.Author
-	16, // 62: testdata.TestMappingService.NestedEnum:output_type -> testdata.NestedEnumResponse
-	25, // 63: testdata.TestMappingService.BlogB:output_type -> examples.BlogResponse
-	25, // 64: testdata.TestMappingService.BlogsB:output_type -> examples.BlogResponse
-	25, // 65: testdata.TestMappingService.BlogBF:output_type -> examples.BlogResponse
-	25, // 66: testdata.TestMappingService.BlogsBF:output_type -> examples.BlogResponse
-	25, // 67: testdata.TestMappingService.BlogA:output_type -> examples.BlogResponse
-	25, // 68: testdata.TestMappingService.BlogsA:output_type -> examples.BlogResponse
-	25, // 69: testdata.TestMappingService.BlogAF:output_type -> examples.BlogResponse
-	25, // 70: testdata.TestMappingService.BlogsAF:output_type -> examples.BlogResponse
-	25, // 71: testdata.TestMappingService.BlogC:output_type -> examples.BlogResponse
-	25, // 72: testdata.TestMappingService.BlogsC:output_type -> examples.BlogResponse
-	25, // 73: testdata.TestMappingService.BlogCF:output_type -> examples.BlogResponse
-	25, // 74: testdata.TestMappingService.BlogsCF:output_type -> examples.BlogResponse
-	44, // [44:75] is the sub-list for method output_type
-	13, // [13:44] is the sub-list for method input_type
+	17, // 44: testdata.TestMappingService.CanceledUnaryContext:input_type -> testdata.EmptyRequest
+	17, // 45: testdata.TestMappingService.CanceledStreamContext:input_type -> testdata.EmptyRequest
+	1,  // 46: testdata.TestReflectService.TypeCasting:output_type -> testdata.TypeCastingResponse
+	3,  // 47: testdata.TestReflectService.IncorrectTypes:output_type -> testdata.GoTypesResponse
+	4,  // 48: testdata.TestMappingService.RepeatedAssociations:output_type -> testdata.RepeatedAssociationsResponse
+	19, // 49: testdata.TestMappingService.EmptyQuery:output_type -> testdata.SampleResponse
+	23, // 50: testdata.TestMappingService.InsertQueryAsExec:output_type -> examples.Author
+	19, // 51: testdata.TestMappingService.ExecAsQuery:output_type -> testdata.SampleResponse
+	5,  // 52: testdata.TestMappingService.UnclaimedColumns:output_type -> testdata.AuthorUserNameResponse
+	23, // 53: testdata.TestMappingService.MultipleRespForUnary:output_type -> examples.Author
+	23, // 54: testdata.TestMappingService.NoRespForUnary:output_type -> examples.Author
+	6,  // 55: testdata.TestMappingService.RepeatedPrimative:output_type -> testdata.RepeatedPrimativeResponse
+	7,  // 56: testdata.TestMappingService.RepeatedEmpty:output_type -> testdata.RepeatedEmptyResponse
+	9,  // 57: testdata.TestMappingService.EmptyNestedField:output_type -> testdata.NestedFieldResponse
+	23, // 58: testdata.TestMappingService.NoMatchingColumns:output_type -> examples.Author
+	10, // 59: testdata.TestMappingService.AssociationInCollection:output_type -> testdata.AssociationInCollectionResponse
+	14, // 60: testdata.TestMappingService.CollectionInAssociation:output_type -> testdata.CollectionInAssociationResponse
+	8,  // 61: testdata.TestMappingService.RepeatedTimestamp:output_type -> testdata.RepeatedTimestampResponse
+	22, // 62: testdata.TestMappingService.NullResoultsForSubmaps:output_type -> examples.Post
+	23, // 63: testdata.TestMappingService.SimpleEnum:output_type -> examples.Author
+	16, // 64: testdata.TestMappingService.NestedEnum:output_type -> testdata.NestedEnumResponse
+	25, // 65: testdata.TestMappingService.BlogB:output_type -> examples.BlogResponse
+	25, // 66: testdata.TestMappingService.BlogsB:output_type -> examples.BlogResponse
+	25, // 67: testdata.TestMappingService.BlogBF:output_type -> examples.BlogResponse
+	25, // 68: testdata.TestMappingService.BlogsBF:output_type -> examples.BlogResponse
+	25, // 69: testdata.TestMappingService.BlogA:output_type -> examples.BlogResponse
+	25, // 70: testdata.TestMappingService.BlogsA:output_type -> examples.BlogResponse
+	25, // 71: testdata.TestMappingService.BlogAF:output_type -> examples.BlogResponse
+	25, // 72: testdata.TestMappingService.BlogsAF:output_type -> examples.BlogResponse
+	25, // 73: testdata.TestMappingService.BlogC:output_type -> examples.BlogResponse
+	25, // 74: testdata.TestMappingService.BlogsC:output_type -> examples.BlogResponse
+	25, // 75: testdata.TestMappingService.BlogCF:output_type -> examples.BlogResponse
+	25, // 76: testdata.TestMappingService.BlogsCF:output_type -> examples.BlogResponse
+	22, // 77: testdata.TestMappingService.CanceledUnaryContext:output_type -> examples.Post
+	22, // 78: testdata.TestMappingService.CanceledStreamContext:output_type -> examples.Post
+	46, // [46:79] is the sub-list for method output_type
+	13, // [13:46] is the sub-list for method input_type
 	13, // [13:13] is the sub-list for extension type_name
 	13, // [13:13] is the sub-list for extension extendee
 	0,  // [0:13] is the sub-list for field type_name
@@ -2104,6 +2116,9 @@ type TestMappingServiceClient interface {
 	BlogsC(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (TestMappingService_BlogsCClient, error)
 	BlogCF(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*examples.BlogResponse, error)
 	BlogsCF(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (TestMappingService_BlogsCFClient, error)
+	// context
+	CanceledUnaryContext(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*examples.Post, error)
+	CanceledStreamContext(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (TestMappingService_CanceledStreamContextClient, error)
 }
 
 type testMappingServiceClient struct {
@@ -2536,6 +2551,47 @@ func (x *testMappingServiceBlogsCFClient) Recv() (*examples.BlogResponse, error)
 	return m, nil
 }
 
+func (c *testMappingServiceClient) CanceledUnaryContext(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*examples.Post, error) {
+	out := new(examples.Post)
+	err := c.cc.Invoke(ctx, "/testdata.TestMappingService/CanceledUnaryContext", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *testMappingServiceClient) CanceledStreamContext(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (TestMappingService_CanceledStreamContextClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_TestMappingService_serviceDesc.Streams[7], "/testdata.TestMappingService/CanceledStreamContext", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &testMappingServiceCanceledStreamContextClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
+}
+
+type TestMappingService_CanceledStreamContextClient interface {
+	Recv() (*examples.Post, error)
+	grpc.ClientStream
+}
+
+type testMappingServiceCanceledStreamContextClient struct {
+	grpc.ClientStream
+}
+
+func (x *testMappingServiceCanceledStreamContextClient) Recv() (*examples.Post, error) {
+	m := new(examples.Post)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // TestMappingServiceServer is the server API for TestMappingService service.
 type TestMappingServiceServer interface {
 	RepeatedAssociations(context.Context, *EmptyRequest) (*RepeatedAssociationsResponse, error)
@@ -2571,6 +2627,9 @@ type TestMappingServiceServer interface {
 	BlogsC(*EmptyRequest, TestMappingService_BlogsCServer) error
 	BlogCF(context.Context, *EmptyRequest) (*examples.BlogResponse, error)
 	BlogsCF(*EmptyRequest, TestMappingService_BlogsCFServer) error
+	// context
+	CanceledUnaryContext(context.Context, *EmptyRequest) (*examples.Post, error)
+	CanceledStreamContext(*EmptyRequest, TestMappingService_CanceledStreamContextServer) error
 }
 
 // UnimplementedTestMappingServiceServer can be embedded to have forward compatible implementations.
@@ -2663,6 +2722,12 @@ func (*UnimplementedTestMappingServiceServer) BlogCF(context.Context, *EmptyRequ
 }
 func (*UnimplementedTestMappingServiceServer) BlogsCF(*EmptyRequest, TestMappingService_BlogsCFServer) error {
 	return status.Errorf(codes.Unimplemented, "method BlogsCF not implemented")
+}
+func (*UnimplementedTestMappingServiceServer) CanceledUnaryContext(context.Context, *EmptyRequest) (*examples.Post, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CanceledUnaryContext not implemented")
+}
+func (*UnimplementedTestMappingServiceServer) CanceledStreamContext(*EmptyRequest, TestMappingService_CanceledStreamContextServer) error {
+	return status.Errorf(codes.Unimplemented, "method CanceledStreamContext not implemented")
 }
 
 func RegisterTestMappingServiceServer(s *grpc.Server, srv TestMappingServiceServer) {
@@ -3212,6 +3277,45 @@ func (x *testMappingServiceBlogsCFServer) Send(m *examples.BlogResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _TestMappingService_CanceledUnaryContext_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EmptyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TestMappingServiceServer).CanceledUnaryContext(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/testdata.TestMappingService/CanceledUnaryContext",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TestMappingServiceServer).CanceledUnaryContext(ctx, req.(*EmptyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TestMappingService_CanceledStreamContext_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(EmptyRequest)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
+	}
+	return srv.(TestMappingServiceServer).CanceledStreamContext(m, &testMappingServiceCanceledStreamContextServer{stream})
+}
+
+type TestMappingService_CanceledStreamContextServer interface {
+	Send(*examples.Post) error
+	grpc.ServerStream
+}
+
+type testMappingServiceCanceledStreamContextServer struct {
+	grpc.ServerStream
+}
+
+func (x *testMappingServiceCanceledStreamContextServer) Send(m *examples.Post) error {
+	return x.ServerStream.SendMsg(m)
+}
+
 var _TestMappingService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "testdata.TestMappingService",
 	HandlerType: (*TestMappingServiceServer)(nil),
@@ -3304,6 +3408,10 @@ var _TestMappingService_serviceDesc = grpc.ServiceDesc{
 			MethodName: "BlogCF",
 			Handler:    _TestMappingService_BlogCF_Handler,
 		},
+		{
+			MethodName: "CanceledUnaryContext",
+			Handler:    _TestMappingService_CanceledUnaryContext_Handler,
+		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
@@ -3339,6 +3447,11 @@ var _TestMappingService_serviceDesc = grpc.ServiceDesc{
 		{
 			StreamName:    "BlogsCF",
 			Handler:       _TestMappingService_BlogsCF_Handler,
+			ServerStreams: true,
+		},
+		{
+			StreamName:    "CanceledStreamContext",
+			Handler:       _TestMappingService_CanceledStreamContext_Handler,
 			ServerStreams: true,
 		},
 	},

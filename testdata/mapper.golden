@@ -2095,6 +2095,8 @@
         }
     ],
     "testMappingClient.BlogsCF": "[\u003cnil\u003e rpc error: code = Internal desc = FailedBlogsCache]",
+    "testMappingClient.CanceledStreamContext": "[\u003cnil\u003e rpc error: code = Canceled desc = context canceled]",
+    "testMappingClient.CanceledUnaryContext": "[\u003cnil\u003e rpc error: code = Canceled desc = context canceled]",
     "testMappingClient.CollectionInAssociation": {},
     "testMappingClient.EmptyNestedField": {
         "blog_id": 9

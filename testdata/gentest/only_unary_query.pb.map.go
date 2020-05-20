@@ -89,8 +89,10 @@ func (m *OnlyQuryServiceMapServer) Query(ctx context.Context, r *OnlyQury) (*Onl
 		log.Printf("error preparing sql query.\n OnlyQury request: %s \n query: %s \n error: %s", r, rawSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	}
-	rows, err := m.DB.Query(preparedSql, args...)
-	if err != nil {
+	rows, err := m.DB.QueryContext(ctx, preparedSql, args...)
+	if ctx.Err() == context.Canceled {
+		return nil, status.Error(codes.Canceled, "Client cancelled.")
+	} else if err != nil {
 		log.Printf("error executing query.\n OnlyQury request: %s \n,query: %s \n error: %s", r, preparedSql, err)
 		return nil, status.Error(codes.InvalidArgument, "request generated malformed query")
 	} else {

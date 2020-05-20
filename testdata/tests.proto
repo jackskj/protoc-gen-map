@@ -47,6 +47,10 @@ service TestMappingService {
   rpc BlogsC  ( EmptyRequest ) returns ( stream examples.BlogResponse) {}
   rpc BlogCF  ( EmptyRequest ) returns ( examples.BlogResponse) {} // Failed
   rpc BlogsCF ( EmptyRequest ) returns ( stream examples.BlogResponse) {}
+
+  // context
+  rpc CanceledUnaryContext   ( EmptyRequest) returns ( examples.Post ) {} // Failed
+  rpc CanceledStreamContext  ( EmptyRequest) returns ( stream examples.Post ) {} // Failed
 }
 
 message TypeCastingResponse{   // GOTYPE

@@ -35,6 +35,7 @@ func (p *SqlPlugin) setStreamingImports() {
 	p.Pkg["codes"] = true
 	p.Pkg["status"] = true
 	p.Pkg["log"] = true
+	p.Pkg["context"] = true
 }
 
 func (p *SqlPlugin) setUnaryImports() {

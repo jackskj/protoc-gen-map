@@ -202,3 +202,10 @@ select id from blog B order by id
 {{ template "Blogs" }}
 {{ end }}
 
+{{ define "CanceledUnaryContext" }}
+select pg_sleep(15)
+{{ end }}
+
+{{ define "CanceledStreamContext" }}
+select pg_sleep(15)
+{{ end }}

@@ -12,10 +12,6 @@ import (
 	"github.com/golang/protobuf/ptypes/timestamp"
 )
 
-var _ = fmt.Errorf
-var _ = log.Fatal
-var _ = reflect.Append
-
 type (
 	mapName    string // Map name corresponds to the proto message name
 	columnName string // Name of the column returned by executing SQL
@@ -245,7 +241,6 @@ func generateSqlMap(sqlMap *SqlMap, protoMsg interface{}, columns []string) {
 			} else if subMapType == "collection" {
 				subMap.MapType = Collection
 				subMap.ProtoSliceElem = field.Type.Elem()
-				log.Println(protoStruct.Field(i))
 				generateSqlMap(&subMap, field.Type, columns)
 				if subMap.Error != nil {
 					sqlMap.Error = subMap.Error

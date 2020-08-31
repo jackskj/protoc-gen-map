@@ -1,5 +1,5 @@
 # protoc-gen-map
-Warning: this project is no longer maintained. For SQL data mapping, use [Carta][https://github.com/jackskj/carta]. 
+WARNING: This project is no longer maintained. For SQL data mapping, use [Carta](https://github.com/jackskj/carta). 
 
 protoc-gen-map simplifies the management of complex datasets by mapping SQL data to protocol buffers. 
 Aside from defining proto messages and SQL statements, the developer does not need to write any data retrieval or mapping code. 
